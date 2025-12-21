@@ -1,0 +1,63 @@
+:root {
+  /* Core Colors */
+  --bg-dark: #0d1117;
+  --bg-card: rgba(22, 27, 34, 0.7);
+  --bg-sidebar: rgba(13, 17, 23, 0.85);
+  
+  /* Text Colors */
+  --text-primary: #ffffff;
+  --text-secondary: #8b949e;
+  --text-muted: #484f58;
+
+  /* Accent Colors */
+  --accent-green: #00ff88;
+  --accent-green-dim: rgba(0, 255, 136, 0.1);
+  --accent-green-glow: 0 0 10px rgba(0, 255, 136, 0.5);
+  --accent-red: #ff4d4d;
+  
+  /* Glassmorphism */
+  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+  --backdrop-blur: blur(12px);
+
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background-color: var(--bg-dark);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--bg-dark);
+  background-image: radial-gradient(circle at 50% 0%, rgba(0, 255, 136, 0.03) 0%, transparent 50%);
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
