@@ -1,40 +1,43 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import PnLChart from '../components/PnLChart';
 import { TrendingUp, TrendingDown, Calendar, Clock, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 
 const Analytics = () => {
     const [pnlRange, setPnlRange] = useState('30D');
     const [hourlyRange, setHourlyRange] = useState('24H');
+    const [pnlData, setPnlData] = useState([]);
+    const [hourlyProfitData, setHourlyProfitData] = useState([]);
 
-    // Mock Data Generator for PnL
-    const pnlData = useMemo(() => {
-        const data = [];
-        const daysMap = { '1D': 1, '2D': 2, '5D': 5, '10D': 10, '15D': 15, '30D': 30, 'ALL': 180 };
-        const days = daysMap[pnlRange];
-        const now = new Date();
+    // Fetch PnL Data
+    useEffect(() => {
+        const fetchPnl = async () => {
+            try {
+                const res = await fetch(`/api/analytics/pnl?range=${pnlRange}`);
+                if (!res.ok) return;
+                const raw = await res.json();
 
-        let value = 1000;
-        const pointsPerDay = pnlRange === '1D' ? 24 : 1;
-        const totalPoints = days * pointsPerDay;
+                // Always use timestamps for unique points and high resolution
+                const formatted = raw.map(d => ({
+                    time: d.time, // d.time is seconds from backend
+                    value: d.value || 0 // Ensure no nulls
+                }));
 
-        for (let i = 0; i < totalPoints; i++) {
-            const date = new Date(now);
-            if (pnlRange === '1D') {
-                date.setHours(now.getHours() - (totalPoints - i));
-            } else {
-                date.setDate(now.getDate() - (totalPoints - i));
+                // Sort just in case, though backend does it
+                // formatted.sort((a, b) => a.time - b.time);
+
+                // Lightweight charts requires distinct timestamps. 
+                // With high freq data, we might have collisions? 
+                // Backend uses float precision timestamp, so collisions unlikely.
+
+                setPnlData(formatted);
+            } catch (e) {
+                console.error("Failed to fetch PnL data", e);
             }
-
-            value += (Math.random() - 0.45) * 50;
-
-            data.push({
-                time: pnlRange === '1D'
-                    ? Math.floor(date.getTime() / 1000)
-                    : date.toISOString().split('T')[0],
-                value: value
-            });
-        }
-        return data;
+        };
+        fetchPnl();
+        // Poll every 10s
+        const interval = setInterval(fetchPnl, 10000);
+        return () => clearInterval(interval);
     }, [pnlRange]);
 
     // Derived PnL Stats
@@ -43,8 +46,8 @@ const Analytics = () => {
 
         let maxVal = -Infinity;
         let minVal = Infinity;
-        let maxDate = '';
-        let minDate = '';
+        let maxDate = 0;
+        let minDate = 0;
 
         pnlData.forEach(d => {
             if (d.value > maxVal) { maxVal = d.value; maxDate = d.time; }
@@ -52,10 +55,13 @@ const Analytics = () => {
         });
 
         const formatDate = (t) => {
-            if (typeof t === 'number') { // Timestamp for 1D
-                return new Date(t * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            if (!t) return '-';
+            const date = new Date(t * 1000);
+            if (pnlRange === '1D') {
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } else {
+                return date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
             }
-            return t; // Date string
         };
 
         return {
@@ -64,26 +70,28 @@ const Analytics = () => {
             maxDate: formatDate(maxDate),
             minDate: formatDate(minDate)
         };
-    }, [pnlData]);
+    }, [pnlData, pnlRange]);
 
-    // Mock Data for Hourly Profit
-    const hourlyProfitData = useMemo(() => {
-        const hoursMap = { '10H': 10, '24H': 24, '48H': 48, '4D': 96 };
-        const count = hoursMap[hourlyRange];
-        const data = [];
-
-        for (let i = 0; i < count; i++) {
-            data.push({
-                hour: i,
-                value: Math.floor(Math.random() * 80) + 10,
-            });
-        }
-        return data;
+    // Fetch Hourly Profit Data
+    useEffect(() => {
+        const fetchHourly = async () => {
+            try {
+                const res = await fetch(`/api/analytics/hourly?range=${hourlyRange}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                setHourlyProfitData(data);
+            } catch (e) {
+                console.error("Failed to fetch hourly data", e);
+            }
+        };
+        fetchHourly();
+        const interval = setInterval(fetchHourly, 10000);
+        return () => clearInterval(interval);
     }, [hourlyRange]);
 
     // Derived Hourly Stats
     const hourlyStats = useMemo(() => {
-        if (!hourlyProfitData.length) return { maxHour: '-', maxVal: 0, minHour: '-', minVal: 0 };
+        if (!hourlyProfitData.length) return { maxHour: '-', maxVal: 0, minHour: '-', minVal: 0, maxRaw: 1 };
 
         let maxVal = -Infinity;
         let minVal = Infinity;
@@ -95,7 +103,10 @@ const Analytics = () => {
             if (d.value < minVal) { minVal = d.value; minHour = d.hour; }
         });
 
-        return { maxHour, maxVal, minHour, minVal };
+        // Ensure maxVal is at least something to avoid divide by zero in chart height
+        const maxRaw = maxVal > 0 ? maxVal : 1;
+
+        return { maxHour, maxVal: maxVal.toFixed(2), minHour, minVal: minVal.toFixed(2), maxRaw };
     }, [hourlyProfitData]);
 
 
@@ -143,8 +154,14 @@ const Analytics = () => {
                             </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#00ff88' }}>+$1,240.50</div>
-                            <span style={{ fontSize: '0.8rem', color: '#00ff88' }}>+12.4%</span>
+                            {/* Current PnL Value (Last point) */}
+                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#00ff88' }}>
+                                ${pnlData.length > 0 ? pnlData[pnlData.length - 1].value.toFixed(2) : '0.00'}
+                            </div>
+                            {/* Assuming initial was 0 or first point, % change? */}
+                            {/* For cumulative PnL, the value IS the profit. % return depends on initial investment. */}
+                            {/* We don't have Invest amt here easily. Just show Profit. */}
+                            <span style={{ fontSize: '0.8rem', color: '#00ff88' }}>Total Profit</span>
                         </div>
                     </div>
                     <div style={{ flex: 1, width: '100%', position: 'relative' }}>
@@ -220,31 +237,88 @@ const Analytics = () => {
                             ))}
                         </div>
                     </div>
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', gap: '2px', overflowX: 'auto', paddingBottom: '5px' }}>
-                        {hourlyProfitData.map((item, i) => (
-                            <div key={i} style={{
-                                flex: 1,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                height: '100%',
-                                justifyContent: 'flex-end',
-                                minWidth: hourlyRange === '4D' ? '6px' : '15px'
-                            }}>
-                                <div style={{
-                                    width: '100%',
-                                    height: `${item.value}%`, // use value as % height
-                                    maxHeight: '100%',
-                                    background: item.hour === hourlyStats.maxHour ? '#00ff88' : 'rgba(0, 216, 255, 0.2)',
-                                    borderRadius: '2px',
-                                    borderTop: item.hour === hourlyStats.maxHour ? 'none' : '2px solid #00d8ff',
-                                    transition: 'height 0.3s ease',
+                    <div
+                        className="no-scrollbar"
+                        style={{
+                            flex: 1,
+                            display: 'flex',
+                            alignItems: 'flex-end',
+                            gap: '2px',
+                            overflowX: 'auto',
+                            paddingBottom: '35px', // Increased space for labels
+                            position: 'relative',
+                            scrollbarWidth: 'none',
+                            msOverflowStyle: 'none'
+                        }}>
+                        <style>{`.no-scrollbar::-webkit-scrollbar { display: none; }`}</style>
+                        {[...hourlyProfitData].reverse().map((item, i) => {
+                            // Time Calculation
+                            // item.hour is index 0..N
+                            // We need to know total window size to map back to time
+                            const hoursMap = { '10H': 10, '24H': 24, '48H': 48, '4D': 96 };
+                            const hoursLookback = hoursMap[hourlyRange] || 24;
+                            const now = Date.now();
+                            // Approximate start time: 
+                            const startTime = now - (hoursLookback * 3600 * 1000);
+                            // item.hour comes from backend as 0..N index
+                            // But backend "hour" field is the index.
+                            const barTime = new Date(startTime + (item.hour * 3600 * 1000));
+                            const timeLabel = barTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            const fullDate = barTime.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                            // Since reversed, index 0 is Current Hour (Newest)
+                            const isCurrentHour = i === 0;
+                            const isMax = item.hour === hourlyStats.maxHour;
+
+                            // Show label every N bars to avoid clutter
+                            const showLabel = (hourlyRange === '10H') || (i % 6 === 0) || isCurrentHour;
+
+                            return (
+                                <div key={i} style={{
+                                    flex: 1,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    height: '100%',
+                                    justifyContent: 'flex-end',
+                                    minWidth: hourlyRange === '4D' ? '6px' : '20px',
                                     position: 'relative'
-                                }}
-                                    title={`Hour ${item.hour}: ${item.value}`}
-                                />
-                            </div>
-                        ))}
+                                }}>
+                                    <div style={{
+                                        width: '100%',
+                                        height: `${(Math.max(0, item.value) / hourlyStats.maxRaw) * 100}%`,
+                                        maxHeight: '100%',
+                                        background: isCurrentHour
+                                            ? 'linear-gradient(180deg, #00ff88 0%, rgba(0,255,136,0.2) 100%)'
+                                            : (isMax ? 'rgba(0, 255, 136, 0.8)' : 'rgba(0, 216, 255, 0.2)'),
+                                        borderRadius: '2px',
+                                        // Highlight current hour with border/glow
+                                        border: isCurrentHour ? '1px solid #fff' : (isMax ? 'none' : 'none'),
+                                        borderTop: (!isCurrentHour && !isMax) ? '2px solid #00d8ff' : 'none',
+                                        boxShadow: isCurrentHour ? '0 0 10px rgba(0,255,136,0.3)' : 'none',
+                                        transition: 'height 0.3s ease',
+                                        position: 'relative',
+                                        cursor: 'help'
+                                    }}
+                                        title={`${fullDate}\nProfit: $${item.value.toFixed(2)}${isCurrentHour ? ' (Current)' : ''}`}
+                                    />
+                                    {/* X-Axis Labels */}
+                                    {showLabel && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            bottom: '-25px',
+                                            fontSize: '0.6rem',
+                                            color: isCurrentHour ? '#00ff88' : 'var(--text-secondary)',
+                                            whiteSpace: 'nowrap',
+                                            transform: hourlyRange === '4D' || hourlyRange === '48H' ? 'rotate(-45deg)' : 'none',
+                                            transformOrigin: 'top left',
+                                            left: '50%'
+                                        }}>
+                                            {isCurrentHour ? 'NOW' : timeLabel}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -264,7 +338,8 @@ const Analytics = () => {
                             <Clock size={20} />
                             <span style={{ fontWeight: '600' }}>Best Hour</span>
                         </div>
-                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>+{hourlyStats.maxVal}%</div>
+                        {/* Changed from % to $ */}
+                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>+${hourlyStats.maxVal}</div>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Hour #{hourlyStats.maxHour}</div>
                     </div>
 
@@ -273,7 +348,8 @@ const Analytics = () => {
                             <Clock size={20} />
                             <span style={{ fontWeight: '600' }}>Quiet Hour</span>
                         </div>
-                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{hourlyStats.minVal}%</div>
+                        {/* Changed from % to $ */}
+                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>${hourlyStats.minVal}</div>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Hour #{hourlyStats.minHour}</div>
                     </div>
                 </div>
