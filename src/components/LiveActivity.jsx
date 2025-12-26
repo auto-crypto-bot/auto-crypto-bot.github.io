@@ -2,19 +2,42 @@ import React from 'react';
 import { ArrowUpRight, ArrowDownRight, RefreshCw, AlertCircle } from 'lucide-react';
 
 const LiveActivity = () => {
-    const logs = [
-        { id: 1, type: 'buy', message: 'Buy Order Executed', details: '0.05 BTC @ $44,500', time: '10:45:32' },
-        { id: 2, type: 'sell', message: 'Sell Order Executed', details: '1.2 ETH @ $2,800', time: '10:42:15' },
-        { id: 3, type: 'system', message: 'Bot Cycle Completed', details: 'Grid refined', time: '10:40:00' },
-        { id: 4, type: 'buy', message: 'Buy Order Executed', details: '15 SOL @ $105', time: '10:35:22' },
-        { id: 5, type: 'error', message: 'API Latency High', details: 'Retrying connection...', time: '10:35:00' },
-    ];
+    const [logs, setLogs] = React.useState([]);
+
+    React.useEffect(() => {
+        const fetchActivity = async () => {
+            try {
+                const res = await fetch('/api/trades?limit=20');
+                const data = await res.json();
+
+                const formatted = data.map((t, idx) => {
+                    const isBuy = t.side === 'BUY';
+                    const date = new Date(t.time);
+                    const timeStr = date.toLocaleTimeString('en-US', { hour12: false });
+
+                    return {
+                        id: idx,
+                        type: isBuy ? 'buy' : 'sell',
+                        message: isBuy ? 'Buy Order Executed' : 'Sell Order Executed',
+                        details: `${parseFloat(t.quantity)} BTC @ $${parseFloat(t.price).toLocaleString()}`,
+                        time: timeStr
+                    };
+                });
+                setLogs(formatted);
+            } catch (e) {
+                console.error("Failed to fetch activity", e);
+            }
+        };
+
+        fetchActivity();
+        const interval = setInterval(fetchActivity, 2000);
+        return () => clearInterval(interval);
+    }, []);
 
     const getIcon = (type) => {
         switch (type) {
             case 'buy': return <ArrowUpRight size={16} color="#00ff88" />;
             case 'sell': return <ArrowDownRight size={16} color="#ff4d4d" />;
-            case 'system': return <RefreshCw size={16} color="#8b949e" />;
             default: return <AlertCircle size={16} color="#ffaa00" />;
         }
     };
@@ -40,6 +63,11 @@ const LiveActivity = () => {
                 gap: '0.5rem',
                 paddingRight: '4px' // Space for scrollbar
             }}>
+                {logs.length === 0 && (
+                    <div style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                        No recent activity...
+                    </div>
+                )}
                 {logs.map((log) => (
                     <div key={log.id} style={{
                         background: 'rgba(255, 255, 255, 0.02)',

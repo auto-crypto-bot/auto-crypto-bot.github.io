@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { createChart, ColorType, CandlestickSeries } from 'lightweight-charts';
+import { createChart, ColorType } from 'lightweight-charts';
 
 const CandleChart = ({ interval = '1m' }) => {
     const chartContainerRef = useRef();
@@ -31,7 +31,7 @@ const CandleChart = ({ interval = '1m' }) => {
             },
         });
 
-        const candlestickSeries = chart.addSeries(CandlestickSeries, {
+        const candlestickSeries = chart.addCandlestickSeries({
             upColor: '#00ff88',
             downColor: '#ff4d4d',
             borderVisible: false,
@@ -42,22 +42,12 @@ const CandleChart = ({ interval = '1m' }) => {
         chartRef.current = chart;
         seriesRef.current = candlestickSeries;
 
-        // -------------------------------------------------------------------------
-        // FUTURE: BACKEND WEBSOCKET INTEGRATION
-        // -------------------------------------------------------------------------
-        // Currently, we simulate real-time updates by polling the Proxy API every 1s.
-        // To switch to the real Backend WebSocket in the future:
-        // 1. Remove the setInterval polling logic below.
-        // 2. Initialize a WebSocket connection: const ws = new WebSocket('ws://localhost:8000/ws');
-        // 3. On 'message' event, parse the candle data and call:
-        //    candlestickSeries.update({ time: ..., open: ..., high: ..., low: ..., close: ... });
-        // -------------------------------------------------------------------------
+        // Tracks active price lines by order ID to prevent flickering
+        const activeLinesMap = new Map();
 
-        // 2. Poll Data (Proxy)
-        // 2. Poll Data (Proxy)
-        const fetchHistory = async () => {
+        const fetchData = async () => {
             try {
-                // Fetch History
+                // --- 1. History & Candles ---
                 const response = await fetch(`/api/v3/klines?symbol=BTCUSDC&interval=${interval}&limit=1000`);
                 const data = await response.json();
 
@@ -70,33 +60,93 @@ const CandleChart = ({ interval = '1m' }) => {
                 }));
 
                 candlestickSeries.setData(candleData);
+
+                // --- 2. Markers (Trades) ---
+                const tradesRes = await fetch('/api/trades?limit=400');
+                const trades = await tradesRes.json();
+
+                // Helper to parse interval to seconds
+                const getIntervalSeconds = (str) => {
+                    if (str.endsWith('m')) return parseInt(str) * 60;
+                    if (str.endsWith('h')) return parseInt(str) * 3600;
+                    if (str.endsWith('d')) return parseInt(str) * 86400;
+                    return 60; // default 1m
+                };
+                const intervalSecs = getIntervalSeconds(interval);
+
+                // Group trades by Snapped Time
+                const grouped = {};
+                trades.forEach(t => {
+                    const tradeTimeSec = t.time / 1000;
+                    const snappedTime = Math.floor(tradeTimeSec / intervalSecs) * intervalSecs;
+
+                    if (!grouped[snappedTime]) grouped[snappedTime] = { buys: 0, sells: 0 };
+                    if (t.side === 'BUY') grouped[snappedTime].buys++;
+                    else grouped[snappedTime].sells++;
+                });
+
+                const markers = [];
+                Object.keys(grouped).forEach(timeKey => {
+                    const time = parseFloat(timeKey);
+                    const { buys, sells } = grouped[timeKey];
+                    if (buys > 0) markers.push({ time, position: 'belowBar', color: '#00ff88', shape: 'circle', text: buys > 1 ? `${buys}B` : 'B', size: 1 });
+                    if (sells > 0) markers.push({ time, position: 'aboveBar', color: '#ff4d4d', shape: 'circle', text: sells > 1 ? `${sells}S` : 'S', size: 1 });
+                });
+                markers.sort((a, b) => a.time - b.time);
+                candlestickSeries.setMarkers(markers);
+
+                // --- 3. Price Lines (Open Orders) ---
+                try {
+                    const priceLinesRes = await fetch('/api/orders/open');
+                    const openOrders = await priceLinesRes.json();
+
+                    const currentIds = new Set();
+
+                    // Add / Update
+                    openOrders.forEach(order => {
+                        currentIds.add(order.id);
+                        const existing = activeLinesMap.get(order.id);
+
+                        if (existing) {
+                            // Update if prices change (e.g. trailing)
+                            existing.applyOptions({ price: order.price });
+                        } else {
+                            const isBuy = order.side === 'BUY';
+                            const line = candlestickSeries.createPriceLine({
+                                price: order.price,
+                                color: isBuy ? '#00ff88' : '#ff4d4d',
+                                lineWidth: 1,
+                                lineStyle: 2, // Dashed
+                                axisLabelVisible: true,
+                                title: isBuy ? 'BUY' : 'SELL',
+                                lineVisible: false, // Hide the line
+                            });
+                            activeLinesMap.set(order.id, line);
+                        }
+                    });
+
+                    // Remove old
+                    for (const [id, line] of activeLinesMap) {
+                        if (!currentIds.has(id)) {
+                            candlestickSeries.removePriceLine(line);
+                            activeLinesMap.delete(id);
+                        }
+                    }
+
+                } catch (e) {
+                    console.error("Failed to load price lines", e);
+                }
+
             } catch (error) {
                 console.error("Failed to fetch chart data:", error);
             }
         };
 
         const updateLatest = async () => {
-            try {
-                // Fetch Latest Candle
-                const response = await fetch(`/api/v3/klines?symbol=BTCUSDC&interval=${interval}&limit=1`);
-                const data = await response.json();
-                if (data && data.length > 0) {
-                    const d = data[data.length - 1];
-                    candlestickSeries.update({
-                        time: d[0] / 1000,
-                        open: parseFloat(d[1]),
-                        high: parseFloat(d[2]),
-                        low: parseFloat(d[3]),
-                        close: parseFloat(d[4]),
-                    });
-                }
-            } catch (error) {
-                console.error("Failed to update chart:", error);
-            }
+            await fetchData();
         };
 
-        fetchHistory();
-        // 1 second interval
+        fetchData();
         const intervalId = setInterval(updateLatest, 1000);
 
         const handleResize = () => {

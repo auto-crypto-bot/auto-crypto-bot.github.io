@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { createChart, ColorType, AreaSeries } from 'lightweight-charts';
+import { createChart, ColorType } from 'lightweight-charts';
 
 const PnLChart = ({ data, color = '#2962FF' }) => {
     const chartContainerRef = useRef();
@@ -28,8 +28,8 @@ const PnLChart = ({ data, color = '#2962FF' }) => {
             },
         });
 
-        // V5 Syntax: use addSeries with the series type class
-        const newSeries = chart.addSeries(AreaSeries, {
+        // V4/V5 Syntax: use addAreaSeries
+        const newSeries = chart.addAreaSeries({
             lineColor: color,
             topColor: color === '#00ff88' ? 'rgba(0, 255, 136, 0.4)' : color.replace(')', ', 0.5)').replace('rgb', 'rgba'),
             bottomColor: color === '#00ff88' ? 'rgba(0, 255, 136, 0.0)' : 'rgba(41, 98, 255, 0.05)',
