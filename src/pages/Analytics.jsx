@@ -299,7 +299,7 @@ const Analytics = () => {
                                         position: 'relative',
                                         cursor: 'help'
                                     }}
-                                        title={`${fullDate}\nProfit: $${item.value.toFixed(2)}${isCurrentHour ? ' (Current)' : ''}`}
+                                        title={`${fullDate}\nProfit: $${item.value?.toFixed(3)}\nCycles: ${item.cycles || 0}${isCurrentHour ? ' (Current)' : ''}`}
                                     />
                                     {/* X-Axis Labels */}
                                     {showLabel && (
