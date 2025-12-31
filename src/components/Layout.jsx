@@ -3,14 +3,9 @@ import Sidebar from './Sidebar';
 
 const Layout = ({ children }) => {
     return (
-        <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
+        <div className="app-layout">
             <Sidebar />
-            <main style={{
-                flex: 1,
-                overflowY: 'auto',
-                padding: '2rem',
-                position: 'relative'
-            }}>
+            <main className="app-main">
                 {children}
             </main>
         </div>

@@ -106,10 +106,10 @@ const Home = () => {
     }, []);
 
     return (
-        <div style={{ height: '100%', display: 'flex', gap: '1.5rem', overflow: 'hidden' }}>
+        <div style={{ height: '100%', display: 'flex', gap: '1.5rem', overflow: 'hidden' }} className="dashboard-container">
 
             {/* Main Content - 75% */}
-            <div style={{ flex: 3, display: 'flex', flexDirection: 'column', gap: '1.5rem', overflowY: 'auto' }}>
+            <div style={{ flex: 3, display: 'flex', flexDirection: 'column', gap: '1.5rem', overflowY: 'auto' }} className="main-content">
 
                 {/* Header / Welcome */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end' }}>
@@ -119,8 +119,8 @@ const Home = () => {
                     </div>
                 </div>
 
-                {/* NEW: Top Row Summary Cards */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
+                {/* Summary Cards Grid (Merged) */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }} className="summary-grid">
                     <SummaryCard
                         label="Total Balance"
                         value={`$${portfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
@@ -139,10 +139,6 @@ const Home = () => {
                         subValue="Active / Max"
                         icon={<Layers size={24} color="#ffffff" />}
                     />
-                </div>
-
-                {/* Existing Summary Cards Row */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
                     <SummaryCard
                         label="Total Profit"
                         value={`${stats.total_pl >= 0 ? '+' : ''}$${stats.total_pl.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`}
@@ -174,7 +170,7 @@ const Home = () => {
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '1.5rem'
-                }}>
+                }} className="asset-section">
                     <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Current Asset Status</h2>
 
                     {(() => {
@@ -189,7 +185,7 @@ const Home = () => {
                         const btcPercent = total > 0 ? (btcValue / total * 100) : 0;
 
                         return (
-                            <div style={{ display: 'flex', gap: '4rem', alignItems: 'center', height: '100%' }}>
+                            <div style={{ display: 'flex', gap: '4rem', alignItems: 'center', height: '100%' }} className="asset-status-inner">
                                 {/* Dynamic Donut Chart */}
                                 <div style={{
                                     width: '180px', height: '180px',
@@ -238,7 +234,7 @@ const Home = () => {
             </div>
 
             {/* Right Sidebar - 25% */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.5rem', minWidth: '300px' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.5rem', minWidth: '300px' }} className="right-sidebar">
 
                 {/* Quick Actions (Disabled) */}
                 <div style={{

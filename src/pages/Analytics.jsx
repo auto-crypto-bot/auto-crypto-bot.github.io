@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import PnLChart from '../components/PnLChart';
-import { TrendingUp, TrendingDown, Calendar, Clock, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { Clock, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 
 const Analytics = () => {
     const [pnlRange, setPnlRange] = useState('30D');
@@ -21,13 +21,6 @@ const Analytics = () => {
                     time: d.time, // d.time is seconds from backend
                     value: d.value || 0 // Ensure no nulls
                 }));
-
-                // Sort just in case, though backend does it
-                // formatted.sort((a, b) => a.time - b.time);
-
-                // Lightweight charts requires distinct timestamps. 
-                // With high freq data, we might have collisions? 
-                // Backend uses float precision timestamp, so collisions unlikely.
 
                 setPnlData(formatted);
             } catch (e) {
@@ -111,15 +104,15 @@ const Analytics = () => {
 
 
     return (
-        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '1.5rem', overflow: 'hidden', paddingRight: '1rem' }}>
+        <div className="analytics-container" style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '1.5rem', overflow: 'hidden', paddingRight: '1rem' }}>
 
             <h1 style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>Analytics</h1>
 
             {/* SECTION 1: Cumulative PnL + Analysis */}
-            <div style={{ flex: 1, display: 'flex', gap: '1.5rem', minHeight: '0' }}>
+            <div className="analytics-row" style={{ flex: 1, display: 'flex', gap: '1.5rem', minHeight: '0' }}>
 
                 {/* Chart Area (75%) */}
-                <div style={{
+                <div className="chart-card" style={{
                     flex: 3,
                     background: 'var(--bg-card)',
                     border: 'var(--glass-border)',
@@ -129,10 +122,10 @@ const Analytics = () => {
                     display: 'flex',
                     flexDirection: 'column'
                 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <div className="analytics-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                         <div>
                             <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Cumulative PnL</h3>
-                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                            <div className="range-controls" style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                                 {['1D', '2D', '5D', '10D', '15D', '30D', 'ALL'].map(range => (
                                     <button
                                         key={range}
@@ -158,9 +151,6 @@ const Analytics = () => {
                             <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#00ff88' }}>
                                 ${pnlData.length > 0 ? pnlData[pnlData.length - 1].value.toFixed(2) : '0.00'}
                             </div>
-                            {/* Assuming initial was 0 or first point, % change? */}
-                            {/* For cumulative PnL, the value IS the profit. % return depends on initial investment. */}
-                            {/* We don't have Invest amt here easily. Just show Profit. */}
                             <span style={{ fontSize: '0.8rem', color: '#00ff88' }}>Total Profit</span>
                         </div>
                     </div>
@@ -170,7 +160,7 @@ const Analytics = () => {
                 </div>
 
                 {/* Analysis Box (25%) */}
-                <div style={{
+                <div className="stats-card" style={{
                     flex: 1,
                     background: 'var(--bg-card)',
                     border: 'var(--glass-border)',
@@ -202,10 +192,10 @@ const Analytics = () => {
 
 
             {/* SECTION 2: Hourly Profit + Analysis */}
-            <div style={{ flex: 1, display: 'flex', gap: '1.5rem', minHeight: '0' }}>
+            <div className="analytics-row" style={{ flex: 1, display: 'flex', gap: '1.5rem', minHeight: '0' }}>
 
                 {/* Chart Area (75%) */}
-                <div style={{
+                <div className="chart-card" style={{
                     flex: 3,
                     background: 'var(--bg-card)',
                     border: 'var(--glass-border)',
@@ -214,9 +204,9 @@ const Analytics = () => {
                     backdropFilter: 'var(--backdrop-blur)',
                     display: 'flex', flexDirection: 'column'
                 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <div className="analytics-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                         <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Hourly Profit Distribution</h3>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <div className="range-controls" style={{ display: 'flex', gap: '0.5rem' }}>
                             {['10H', '24H', '48H', '4D'].map(range => (
                                 <button
                                     key={range}
@@ -323,7 +313,7 @@ const Analytics = () => {
                 </div>
 
                 {/* Analysis Box (25%) */}
-                <div style={{
+                <div className="stats-card" style={{
                     flex: 1,
                     background: 'var(--bg-card)',
                     border: 'var(--glass-border)',

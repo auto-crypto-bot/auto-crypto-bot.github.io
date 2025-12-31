@@ -138,14 +138,14 @@ const Settings = () => {
     };
 
     return (
-        <div style={{ height: '100%', display: 'flex', gap: '1.5rem', overflow: 'hidden' }}>
+        <div style={{ height: '100%', display: 'flex', gap: '1.5rem', overflow: 'hidden' }} className="settings-container">
 
             {/* Main Center Area */}
-            <div style={{ flex: 3, display: 'flex', flexDirection: 'column', gap: '1.5rem', overflowY: 'auto', paddingRight: '0.5rem' }}>
+            <div style={{ flex: 3, display: 'flex', flexDirection: 'column', gap: '1.5rem', overflowY: 'auto', paddingRight: '0.5rem' }} className="main-center-area">
                 <h1 style={{ fontSize: '2rem', fontWeight: 'bold', margin: '0 0 0.5rem 0' }}>System Configuration</h1>
 
                 {/* Parameters + Visualization Row */}
-                <div style={{ display: 'flex', gap: '1.5rem' }}>
+                <div style={{ display: 'flex', gap: '1.5rem' }} className="params-vis-row">
 
                     {/* Strategy Parameters Section (Half Width) */}
                     <div style={{
@@ -233,7 +233,7 @@ const Settings = () => {
                         backdropFilter: 'var(--backdrop-blur)',
                         display: 'flex',
                         flexDirection: 'column'
-                    }}>
+                    }} className="strategy-vis-container">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
                             <Info size={20} color="#00d8ff" />
                             <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Strategy Visualization</h3>
@@ -262,7 +262,7 @@ const Settings = () => {
                         <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Risk Management</h3>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }} className="risk-grid">
                         <FormInput label="Risk Per Trade (%)" value={riskPerTrade} onChange={setRiskPerTrade} type="number" step="0.1" />
                         <FormInput label="Stop Loss (%)" value={stopLoss} onChange={setStopLoss} type="number" step="0.1" />
                         <FormInput label="Take Profit (%)" value={takeProfit} onChange={setTakeProfit} type="number" step="0.1" />
@@ -272,7 +272,7 @@ const Settings = () => {
             </div>
 
             {/* Right Sidebar */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.5rem', minWidth: '300px' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.5rem', minWidth: '300px' }} className="right-sidebar">
                 <div style={{
                     background: 'var(--bg-card)',
                     border: 'var(--glass-border)',
@@ -426,7 +426,7 @@ const GridVisualization = ({ gridLevels, upperPrice, lowerPrice, currentPrice })
             <div style={{
                 position: 'relative',
                 width: '100%',
-                height: '100%',
+                flex: 1, // Changed from height: '100%' to flex: 1 to ensure it fills minHeight parent
                 marginLeft: '10px'
             }}>
 

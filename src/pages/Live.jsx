@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import CandleChart from '../components/CandleChart';
 import LiveActivity from '../components/LiveActivity';
-import { Settings, Maximize2, TrendingUp, TrendingDown, Clock } from 'lucide-react';
+import { Settings } from 'lucide-react';
 
 const Live = () => {
     const [timeframe, setTimeframe] = useState('1m');
@@ -29,9 +29,9 @@ const Live = () => {
     const formatChange = (c) => c ? parseFloat(c).toFixed(2) : '0.00';
 
     return (
-        <div style={{ height: '100%', display: 'flex', gap: '1.5rem', overflow: 'hidden' }}>
+        <div className="live-layout" style={{ height: '100%', display: 'flex', gap: '1.5rem', overflow: 'hidden' }}>
             {/* Main Chart Section */}
-            <div style={{
+            <div className="chart-section" style={{
                 flex: 3,
                 background: 'var(--bg-card)',
                 border: 'var(--glass-border)',
@@ -50,9 +50,9 @@ const Live = () => {
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     background: 'rgba(0,0,0,0.2)'
-                }}>
+                }} className="chart-header">
                     {/* Left: Ticker Info */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }} className="ticker-info">
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                             <span style={{ fontSize: '1.25rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 BTC/USDC
@@ -75,7 +75,7 @@ const Live = () => {
 
                         {/* 24h Stats */}
                         {ticker && (
-                            <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                            <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }} className="ticker-stats">
                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                                     <span style={{ opacity: 0.6 }}>24h High</span>
                                     <span style={{ color: 'var(--text-primary)' }}>{formatPrice(ticker.highPrice)}</span>
@@ -93,7 +93,7 @@ const Live = () => {
                     </div>
 
                     {/* Right: Controls */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }} className="chart-controls">
                         {/* Timeframe Selector */}
                         <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '2px' }}>
                             {['1m', '5m', '60m'].map((tf) => (
@@ -132,7 +132,7 @@ const Live = () => {
             </div>
 
             {/* Right Sidebar - 25% Width */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.5rem', minWidth: '300px' }}>
+            <div className="activity-section" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.5rem', minWidth: '300px' }}>
 
                 {/* Live Activity Feed */}
                 <div style={{

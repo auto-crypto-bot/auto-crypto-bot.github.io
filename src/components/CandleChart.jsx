@@ -112,13 +112,14 @@ const CandleChart = ({ interval = '1m' }) => {
                             existing.applyOptions({ price: order.price });
                         } else {
                             const isBuy = order.side === 'BUY';
+                            const isMobile = window.innerWidth < 900;
                             const line = candlestickSeries.createPriceLine({
                                 price: order.price,
                                 color: isBuy ? '#00ff88' : '#ff4d4d',
                                 lineWidth: 1,
                                 lineStyle: 2, // Dashed
                                 axisLabelVisible: true,
-                                title: isBuy ? 'BUY' : 'SELL',
+                                title: isMobile ? '' : (isBuy ? 'BUY' : 'SELL'), // Compact on mobile
                                 lineVisible: false, // Hide the line
                             });
                             activeLinesMap.set(order.id, line);
