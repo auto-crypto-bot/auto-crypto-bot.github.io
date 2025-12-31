@@ -114,7 +114,7 @@ const Home = () => {
                 {/* Header / Welcome */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end' }}>
                     <div>
-                        <h1 style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>Dashboard</h1>
+                        <h1 style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>Bot Dash</h1>
                         <span style={{ color: 'var(--text-secondary)' }}>Welcome back, Trader. System is <span style={{ color: '#00ff88' }}>Active</span></span>
                     </div>
                 </div>
@@ -134,7 +134,7 @@ const Home = () => {
                         icon={<Calendar size={24} color="#ffffff" />}
                     />
                     <SummaryCard
-                        label="Open Positions"
+                        label="Positions"
                         value={`${positionsInfo.active} / ${positionsInfo.max}`}
                         subValue="Active / Max"
                         icon={<Layers size={24} color="#ffffff" />}
@@ -177,46 +177,62 @@ const Home = () => {
                 }}>
                     <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Current Asset Status</h2>
 
-                    <div style={{ display: 'flex', gap: '4rem', alignItems: 'center', height: '100%' }}>
-                        {/* Simple CSS Donut Placeholder using Conic Gradient */}
-                        <div style={{
-                            width: '180px', height: '180px',
-                            borderRadius: '50%',
-                            background: 'conic-gradient(#00ff88 0% 65%, #2a2d35 65% 100%)',
-                            position: 'relative',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                        }}>
-                            <div style={{
-                                width: '140px', height: '140px',
-                                background: 'var(--bg-card)',
-                                borderRadius: '50%',
-                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
-                            }}>
-                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>USDC Exposure</span>
-                                <span style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>65%</span>
-                            </div>
-                        </div>
+                    {(() => {
+                        const usdcAmount = (balances.USDC?.free || 0) + (balances.USDC?.frozen || 0);
+                        const btcBalance = (balances.BTC?.free || 0) + (balances.BTC?.frozen || 0);
+                        const btcValue = btcBalance * ticker.price;
 
-                        {/* Asset List */}
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            <AssetRow
-                                symbol="USDC"
-                                name="USD Coin"
-                                amount={((balances.USDC?.free || 0) + (balances.USDC?.frozen || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                value={`$${((balances.USDC?.free || 0) + (balances.USDC?.frozen || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                                percent={portfolioValue > 0 ? (((balances.USDC?.free || 0) + (balances.USDC?.frozen || 0)) / portfolioValue * 100).toFixed(1) : 0}
-                                color="#00ff88"
-                            />
-                            <AssetRow
-                                symbol="BTC"
-                                name="Bitcoin"
-                                amount={(positionsInfo.active * (positionsInfo.quantity || 0)).toFixed(6)}
-                                value={`$${((positionsInfo.active * (positionsInfo.quantity || 0)) * ticker.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                                percent={portfolioValue > 0 ? (((positionsInfo.active * (positionsInfo.quantity || 0)) * ticker.price) / portfolioValue * 100).toFixed(1) : 0}
-                                color="#2a2d35"
-                            />
-                        </div>
-                    </div>
+                        // Recalculate total for accuracy in this scope
+                        const total = usdcAmount + btcValue;
+
+                        const usdcPercent = total > 0 ? (usdcAmount / total * 100) : 0;
+                        const btcPercent = total > 0 ? (btcValue / total * 100) : 0;
+
+                        return (
+                            <div style={{ display: 'flex', gap: '4rem', alignItems: 'center', height: '100%' }}>
+                                {/* Dynamic Donut Chart */}
+                                <div style={{
+                                    width: '180px', height: '180px',
+                                    borderRadius: '50%',
+                                    // Dynamic gradient based on USDC percent
+                                    background: `conic-gradient(#00ff88 0% ${usdcPercent}%, #2a2d35 ${usdcPercent}% 100%)`,
+                                    position: 'relative',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    transition: 'background 0.5s ease-out'
+                                }}>
+                                    <div style={{
+                                        width: '140px', height: '140px',
+                                        background: 'var(--bg-card)',
+                                        borderRadius: '50%',
+                                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
+                                    }}>
+                                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>USDC Exposure</span>
+                                        <span style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{usdcPercent.toFixed(1)}%</span>
+                                    </div>
+                                </div>
+
+                                {/* Asset List */}
+                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                    <AssetRow
+                                        symbol="USDC"
+                                        name="USD Coin"
+                                        amount={usdcAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        value={`$${usdcAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                        percent={usdcPercent.toFixed(1)}
+                                        color="#00ff88"
+                                    />
+                                    <AssetRow
+                                        symbol="BTC"
+                                        name="Bitcoin"
+                                        amount={btcBalance.toFixed(6)}
+                                        value={`$${btcValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                        percent={btcPercent.toFixed(1)}
+                                        color="#2a2d35"
+                                    />
+                                </div>
+                            </div>
+                        );
+                    })()}
                 </div>
 
             </div>
@@ -260,7 +276,10 @@ const Home = () => {
                     border: 'var(--glass-border)',
                     borderRadius: '16px',
                     padding: '1.5rem',
-                    backdropFilter: 'var(--backdrop-blur)'
+                    backdropFilter: 'var(--backdrop-blur)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden' // Ensure card itself respects bounds
                 }}>
                     <h3 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1.1rem' }}>System Health</h3>
 
@@ -271,14 +290,31 @@ const Home = () => {
                         <HealthItem label="Disk Space" value={systemHealth.disk_space} status="neutral" />
                     </div>
 
-                    <div style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(255, 77, 77, 0.1)', borderRadius: '8px', border: '1px solid rgba(255, 77, 77, 0.2)' }}>
+                    <div style={{
+                        marginTop: '2rem',
+                        padding: '1rem',
+                        background: 'rgba(255, 77, 77, 0.1)',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(255, 77, 77, 0.2)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        flex: 1,
+                        overflow: 'hidden',
+                        minHeight: '200px' // Ensure it takes some space but flexes
+                    }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#ff4d4d', marginBottom: '0.5rem' }}>
                             <Server size={16} />
                             <span style={{ fontWeight: 'bold' }}>System Logs</span>
                         </div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        <div style={{
+                            fontSize: '0.8rem',
+                            color: 'var(--text-secondary)',
+                            overflowY: 'auto',
+                            maxHeight: '200px', // Explicit max height
+                            paddingRight: '5px' // Space for scrollbar
+                        }}>
                             {systemLogs.length > 0 ? systemLogs.map((log, i) => (
-                                <div key={i}>{log}</div>
+                                <div key={i} style={{ marginBottom: '4px', borderBottom: '1px solid rgba(255,255,255,0.02)', paddingBottom: '2px' }}>{log}</div>
                             )) : <div>No logs available...</div>}
                         </div>
                     </div>
