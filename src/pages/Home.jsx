@@ -181,7 +181,15 @@ const Home = () => {
         };
     }, []);
 
-    // ... (recalc portfolio effect)
+    // Recalc Portfolio when balances or ticker change
+    useEffect(() => {
+        if (balances && ticker) {
+            const btcPrice = parseFloat(ticker.lastPrice || ticker.price || 0);
+            const btcAmount = (balances.BTC?.free || 0) + (balances.BTC?.frozen || 0);
+            const usdcAmount = (balances.USDC?.free || 0) + (balances.USDC?.frozen || 0);
+            setPortfolioValue((btcAmount * btcPrice) + usdcAmount);
+        }
+    }, [balances, ticker]);
 
     return (
         <div style={{ height: '100%', display: 'flex', gap: '1.5rem', overflow: 'hidden' }} className="dashboard-container">
