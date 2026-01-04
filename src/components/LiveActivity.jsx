@@ -8,10 +8,10 @@ const LiveActivity = () => {
     useEffect(() => {
         const fetchActivity = async () => {
             const { data } = await supabase
-                .from('order_updates')
+                .from('orders')
                 .select('*')
-                .eq('status', 2) // FILLED
-                .order('event_time', { ascending: false })
+                .eq('status', 'FILLED')
+                .order('created_at', { ascending: false })
                 .limit(20);
 
             if (data) formatAndSet(data);
@@ -19,16 +19,15 @@ const LiveActivity = () => {
 
         const formatAndSet = (rawData) => {
             const formatted = rawData.map((t, idx) => {
-                // Side: 1=BUY, 2=SELL (Assuming Mexc numeric)
-                const isBuy = t.side === 1 || t.side === 'BUY';
-                const date = new Date(t.event_time); // Ensure ms timestamp if int
+                const isBuy = t.side === 'BUY';
+                const date = new Date(t.created_at);
                 const timeStr = date.toLocaleTimeString('en-US', { hour12: false });
 
                 return {
-                    id: t.id || idx,
+                    id: t.order_id || t.id || idx,
                     type: isBuy ? 'buy' : 'sell',
                     message: isBuy ? 'Buy Order Executed' : 'Sell Order Executed',
-                    details: `${parseFloat(t.quantity)} BTC @ $${parseFloat(t.price).toLocaleString()}`,
+                    details: `${parseFloat(t.orig_qty || t.quantity || 0)} BTC @ $${parseFloat(t.price).toLocaleString()}`,
                     time: timeStr
                 };
             });
@@ -38,29 +37,42 @@ const LiveActivity = () => {
         fetchActivity();
 
         const subscription = supabase
-            .channel('activity-feed')
+            .channel('activity-feed-orders')
             .on('postgres_changes', {
-                event: 'INSERT',
+                event: 'UPDATE', // Listen for updates to FILLED
                 schema: 'public',
-                table: 'order_updates',
-                filter: 'status=eq.2'
+                table: 'orders',
+                filter: 'status=eq.FILLED'
             }, (payload) => {
-                setLogs(prev => {
-                    const newLog = payload.new;
-                    const isBuy = newLog.side === 1;
-                    const date = new Date(newLog.event_time);
-                    const item = {
-                        id: newLog.id,
-                        type: isBuy ? 'buy' : 'sell',
-                        message: isBuy ? 'Buy Order Executed' : 'Sell Order Executed',
-                        details: `${parseFloat(newLog.quantity)} BTC @ $${parseFloat(newLog.price).toLocaleString()}`,
-                        time: date.toLocaleTimeString('en-US', { hour12: false })
-                    };
-                    // Add new at top, keep 20
-                    return [item, ...prev].slice(0, 20);
-                });
+                handleNewLog(payload.new);
+            })
+            .on('postgres_changes', {
+                event: 'INSERT', // Listen for new FILLED orders (unlikely but possible)
+                schema: 'public',
+                table: 'orders',
+                filter: 'status=eq.FILLED'
+            }, (payload) => {
+                handleNewLog(payload.new);
             })
             .subscribe();
+
+        const handleNewLog = (newLog) => {
+            setLogs(prev => {
+                // Deduplicate by ID
+                if (prev.find(l => l.id === newLog.order_id)) return prev;
+
+                const isBuy = newLog.side === 'BUY';
+                const date = new Date(newLog.created_at || Date.now());
+                const item = {
+                    id: newLog.order_id || newLog.id,
+                    type: isBuy ? 'buy' : 'sell',
+                    message: isBuy ? 'Buy Order Executed' : 'Sell Order Executed',
+                    details: `${parseFloat(newLog.orig_qty || newLog.quantity || 0)} BTC @ $${parseFloat(newLog.price).toLocaleString()}`,
+                    time: date.toLocaleTimeString('en-US', { hour12: false })
+                };
+                return [item, ...prev].slice(0, 20);
+            });
+        };
 
         return () => {
             supabase.removeChannel(subscription);
