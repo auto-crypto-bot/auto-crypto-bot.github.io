@@ -48,7 +48,37 @@ const Analytics = () => {
         return () => clearInterval(interval);
     }, [pnlRange]);
 
-    // ... PnL Stats useMemo (unchanged) ...
+    // Derived PnL Stats
+    const pnlStats = useMemo(() => {
+        if (!pnlData.length) return { max: 0, min: 0, maxDate: '-', minDate: '-' };
+
+        let max = -Infinity;
+        let min = Infinity;
+        let maxDate = '-';
+        let minDate = '-';
+
+        pnlData.forEach(d => {
+            if (d.value > max) {
+                max = d.value;
+                maxDate = new Date(d.time * 1000).toLocaleDateString();
+            }
+            if (d.value < min) {
+                min = d.value;
+                minDate = new Date(d.time * 1000).toLocaleDateString();
+            }
+        });
+
+        // Handle case where no data processed (shouldn't happen if length > 0)
+        if (max === -Infinity) max = 0;
+        if (min === Infinity) min = 0;
+
+        return {
+            max: max.toFixed(2),
+            min: min.toFixed(2),
+            maxDate,
+            minDate
+        };
+    }, [pnlData]);
 
     // Fetch Hourly Profit Data
     useEffect(() => {
