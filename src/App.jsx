@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Link, useLocation } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Activity, Settings as SettingsIcon, Zap } from 'lucide-react';
 import Home from './pages/Home';
 import Live from './pages/Live';
@@ -8,7 +8,7 @@ import Settings from './pages/Settings';
 import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 
-const App = () => {
+const AppContent = () => {
   const location = useLocation();
 
   // If on login page, don't show the sidebar layout
@@ -60,5 +60,13 @@ const NavLink = ({ to, icon, label, active }) => (
     {active && <div className="active-indicator" />}
   </Link>
 );
+
+const App = () => {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
+  );
+};
 
 export default App;
