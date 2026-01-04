@@ -35,7 +35,7 @@ const Analytics = () => {
                 const formatted = data.map(d => {
                     cumulative += (d.profit || 0);
                     return {
-                        time: d.close_time,
+                        time: new Date(d.close_time).getTime() / 1000,
                         value: cumulative
                     };
                 });
@@ -106,7 +106,8 @@ const Analytics = () => {
 
                 data.forEach(d => {
                     // Calculate which bucket: (Timestamp - Start) / 3600
-                    const diffHours = (d.close_time - startTs) / 3600;
+                    const cycleTime = new Date(d.close_time).getTime() / 1000;
+                    const diffHours = (cycleTime - startTs) / 3600;
                     const index = Math.floor(diffHours);
                     if (index >= 0 && index < rangeHours) {
                         buckets[index].value += (d.profit || 0);
