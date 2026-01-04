@@ -96,7 +96,7 @@ const Analytics = () => {
             const { data } = await supabase
                 .from('completed_cycles')
                 .select('close_time, profit')
-                .gt('close_time', startTs)
+                .gt('close_time', new Date(startTs * 1000).toISOString())
                 .order('close_time', { ascending: true });
 
             if (data) {
