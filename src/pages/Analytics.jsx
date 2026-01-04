@@ -95,6 +95,36 @@ const Analytics = () => {
     }, [pnlRange, hourlyRange]);
 
 
+    // Derived PnL Stats
+    const pnlStats = useMemo(() => {
+        if (!pnlData.length) return { max: '0.00', maxDate: '-', min: '0.00', minDate: '-' };
+
+        let max = -Infinity;
+        let min = Infinity;
+        let maxTime = 0;
+        let minTime = 0;
+
+        pnlData.forEach(d => {
+            if (d.value > max) {
+                max = d.value;
+                maxTime = d.time;
+            }
+            if (d.value < min) {
+                min = d.value;
+                minTime = d.time;
+            }
+        });
+
+        const formatDate = (ts) => new Date(ts * 1000).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+        return {
+            max: max.toFixed(2),
+            maxDate: maxTime ? formatDate(maxTime) : '-',
+            min: min.toFixed(2),
+            minDate: minTime ? formatDate(minTime) : '-'
+        };
+    }, [pnlData]);
+
     // Derived Hourly Stats
     const hourlyStats = useMemo(() => {
         if (!hourlyProfitData.length) return { maxHour: '-', maxVal: 0, minHour: '-', minVal: 0, maxRaw: 1 };
