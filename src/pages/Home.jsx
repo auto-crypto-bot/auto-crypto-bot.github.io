@@ -25,12 +25,12 @@ const Home = () => {
 
                     data.forEach(row => {
                         if (row.key === 'ticker_BTCUSDC') {
-                            try { initialTicker = JSON.parse(row.value); setTicker(initialTicker); } catch (e) { }
+                            try { initialTicker = typeof row.value === 'string' ? JSON.parse(row.value) : row.value; setTicker(initialTicker); } catch (e) { }
                         } else if (row.key === 'balances') {
-                            try { initialBalances = JSON.parse(row.value); setBalances(initialBalances); } catch (e) { }
+                            try { initialBalances = typeof row.value === 'string' ? JSON.parse(row.value) : row.value; setBalances(initialBalances); } catch (e) { }
                         } else if (row.key === 'bot_configuration') {
                             try {
-                                const config = JSON.parse(row.value);
+                                const config = typeof row.value === 'string' ? JSON.parse(row.value) : row.value;
                                 setPositionsInfo(prev => ({
                                     ...prev,
                                     max: config.max_positions || 40,
@@ -48,7 +48,7 @@ const Home = () => {
                     const { key, value } = payload.new;
                     if (!value) return;
                     try {
-                        const parsed = JSON.parse(value);
+                        const parsed = typeof value === 'string' ? JSON.parse(value) : value;
                         if (key === 'ticker_BTCUSDC') {
                             setTicker(parsed);
                         } else if (key === 'balances') {

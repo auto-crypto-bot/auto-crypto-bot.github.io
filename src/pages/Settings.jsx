@@ -83,7 +83,8 @@ const Settings = () => {
             }, (payload) => {
                 if (payload.new && payload.new.value) {
                     try {
-                        const t = JSON.parse(payload.new.value);
+                        const val = payload.new.value;
+                        const t = typeof val === 'string' ? JSON.parse(val) : val;
                         if (t.lastPrice) setCurrentPrice(parseFloat(t.lastPrice));
                     } catch { }
                 }

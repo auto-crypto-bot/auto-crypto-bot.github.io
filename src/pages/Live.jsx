@@ -38,7 +38,8 @@ const Live = () => {
             }, (payload) => {
                 if (payload.new && payload.new.value) {
                     try {
-                        setTicker(JSON.parse(payload.new.value));
+                        const val = payload.new.value;
+                        setTicker(typeof val === 'string' ? JSON.parse(val) : val);
                     } catch (e) { console.error(e); }
                 }
             })
