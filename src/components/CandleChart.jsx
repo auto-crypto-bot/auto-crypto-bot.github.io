@@ -206,6 +206,7 @@ const CandleChart = ({ interval = '1m' }) => {
         };
 
         // --- Real-time: Supabase (Orders) ---
+        // --- Real-time: Supabase (Orders) ---
         const ordersSub = supabase.channel('chart-orders')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
                 // Refresh markers and lines on any order change
@@ -214,17 +215,16 @@ const CandleChart = ({ interval = '1m' }) => {
             })
             .subscribe();
 
-        const handleResize = () => {
-            if (chartContainerRef.current) {
-                chart.applyOptions({ width: chartContainerRef.current.clientWidth });
-            }
-        };
-        window.addEventListener('resize', handleResize);
-
         return () => {
-            window.removeEventListener('resize', handleResize);
-            chart.remove();
-            ws.close();
+            if (activeLinesMap) {
+                activeLinesMap.forEach(line => {
+                    try { candlestickSeries.removePriceLine(line); } catch (e) { }
+                });
+            }
+            if (ws) {
+                ws.onmessage = null;
+                ws.close();
+            }
             supabase.removeChannel(ordersSub);
         };
     }, [interval]);
