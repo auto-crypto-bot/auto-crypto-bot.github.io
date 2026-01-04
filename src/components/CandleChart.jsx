@@ -76,10 +76,10 @@ const CandleChart = ({ interval = '1m' }) => {
         const updateMarkers = async () => {
             const { data: trades } = await supabase
                 .from('orders')
-                .select('created_at, side')
+                .select('created_at, side, quantity, price, order_id')
                 .eq('status', 'FILLED')
                 .order('created_at', { ascending: false })
-                .limit(400);
+                .limit(500);
 
             if (trades) {
                 const getIntervalSeconds = (str) => {
@@ -92,10 +92,15 @@ const CandleChart = ({ interval = '1m' }) => {
 
                 const grouped = {};
                 trades.forEach(t => {
+                    // Robust side check
+                    const isBuy = t.side === 'BUY' || t.side === 1 || t.side === 'buy';
+
                     const tradeTimeSec = new Date(t.created_at).getTime() / 1000;
                     const snappedTime = Math.floor(tradeTimeSec / intervalSecs) * intervalSecs;
+
                     if (!grouped[snappedTime]) grouped[snappedTime] = { buys: 0, sells: 0 };
-                    if (t.side === 'BUY') grouped[snappedTime].buys++;
+
+                    if (isBuy) grouped[snappedTime].buys++;
                     else grouped[snappedTime].sells++;
                 });
 
@@ -103,8 +108,23 @@ const CandleChart = ({ interval = '1m' }) => {
                 Object.keys(grouped).forEach(timeKey => {
                     const time = parseFloat(timeKey);
                     const { buys, sells } = grouped[timeKey];
-                    if (buys > 0) markers.push({ time, position: 'belowBar', color: '#00ff88', shape: 'circle', text: buys > 1 ? `${buys}B` : 'B', size: 1 });
-                    if (sells > 0) markers.push({ time, position: 'aboveBar', color: '#ff4d4d', shape: 'circle', text: sells > 1 ? `${sells}S` : 'S', size: 1 });
+                    // Position calculations: B below, S above
+                    if (buys > 0) markers.push({
+                        time,
+                        position: 'belowBar',
+                        color: '#00ff88',
+                        shape: 'arrowUp', // Changed to arrow for better visibility
+                        text: buys > 1 ? `${buys}B` : 'B',
+                        size: 2 // Slightly larger
+                    });
+                    if (sells > 0) markers.push({
+                        time,
+                        position: 'aboveBar',
+                        color: '#ff4d4d',
+                        shape: 'arrowDown',
+                        text: sells > 1 ? `${sells}S` : 'S',
+                        size: 2
+                    });
                 });
                 markers.sort((a, b) => a.time - b.time);
                 candlestickSeries.setMarkers(markers);
