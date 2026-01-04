@@ -69,12 +69,22 @@ const Home = () => {
                 }
             });
 
-            const sub = supabase.channel('home-realtime')
+            const sub = supabase.channel('home-realtime-debug')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'strategy_stats' }, (payload) => {
+                    console.log("[Home] Realtime Event:", payload);
+
+                    if (!payload.new) return;
                     const { key, value } = payload.new;
-                    if (!value) return;
+
+                    if (!value) {
+                        console.warn("[Home] No value field in payload:", payload.new);
+                        return;
+                    }
+
                     try {
                         const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+                        console.log("[Home] Parsed update for:", key);
+
                         if (key === 'ticker_BTCUSDC') {
                             setTicker(parsed);
                         } else if (key === 'balances') {
@@ -87,7 +97,7 @@ const Home = () => {
                             }));
                         }
                     } catch (e) {
-                        console.error("RT Parse Error", e);
+                        console.error("[Home] RT Parse Error", e);
                     }
                 })
                 .subscribe((status) => {
