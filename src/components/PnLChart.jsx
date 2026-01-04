@@ -3,8 +3,10 @@ import { createChart, ColorType } from 'lightweight-charts';
 
 const PnLChart = ({ data, color = '#2962FF' }) => {
     const chartContainerRef = useRef();
-    const chartRef = useRef();
+    const chartRef = useRef(null);
+    const seriesRef = useRef(null);
 
+    // 1. Initialize Chart (Once)
     useEffect(() => {
         if (!chartContainerRef.current) return;
 
@@ -25,26 +27,29 @@ const PnLChart = ({ data, color = '#2962FF' }) => {
             },
             rightPriceScale: {
                 borderColor: 'rgba(255, 255, 255, 0.1)',
+                scaleMargins: {
+                    top: 0.1,
+                    bottom: 0.1,
+                },
             },
         });
 
-        // V4/V5 Syntax: use addAreaSeries
-        const newSeries = chart.addAreaSeries({
+        const series = chart.addAreaSeries({
             lineColor: color,
-            topColor: color === '#00ff88' ? 'rgba(0, 255, 136, 0.4)' : color.replace(')', ', 0.5)').replace('rgb', 'rgba'),
+            topColor: color === '#00ff88' ? 'rgba(0, 255, 136, 0.4)' : 'rgba(41, 98, 255, 0.4)',
             bottomColor: color === '#00ff88' ? 'rgba(0, 255, 136, 0.0)' : 'rgba(41, 98, 255, 0.05)',
             lineWidth: 2,
         });
 
-        newSeries.setData(data);
-        chart.timeScale().fitContent();
-
         chartRef.current = chart;
+        seriesRef.current = series;
 
         const handleResize = () => {
-            if (chartContainerRef.current) {
-                chart.applyOptions({ width: chartContainerRef.current.clientWidth });
-                chart.timeScale().fitContent();
+            if (chartContainerRef.current && chartRef.current) {
+                chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
+                try {
+                    chartRef.current.timeScale().fitContent();
+                } catch (e) { /* ignore disposal errors during resize */ }
             }
         };
 
@@ -52,8 +57,29 @@ const PnLChart = ({ data, color = '#2962FF' }) => {
 
         return () => {
             window.removeEventListener('resize', handleResize);
-            chart.remove();
+            if (chartRef.current) {
+                chartRef.current.remove();
+                chartRef.current = null;
+            }
         };
+    }, []); // Run once on mount
+
+    // 2. Update Data (When data/color changes)
+    useEffect(() => {
+        if (seriesRef.current && data) {
+            seriesRef.current.setData(data);
+            if (chartRef.current) {
+                chartRef.current.timeScale().fitContent();
+            }
+        }
+        // Update colors if needed
+        if (seriesRef.current) {
+            seriesRef.current.applyOptions({
+                lineColor: color,
+                topColor: color === '#00ff88' ? 'rgba(0, 255, 136, 0.4)' : 'rgba(41, 98, 255, 0.4)',
+                bottomColor: color === '#00ff88' ? 'rgba(0, 255, 136, 0.0)' : 'rgba(41, 98, 255, 0.05)',
+            })
+        }
     }, [data, color]);
 
     return (
