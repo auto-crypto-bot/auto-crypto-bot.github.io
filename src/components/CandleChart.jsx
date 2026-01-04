@@ -48,9 +48,9 @@ const CandleChart = ({ interval = '1m' }) => {
 
         const fetchData = async () => {
             try {
-                // --- 1. History & Candles (Direct Binance API) ---
-                // Note: This might hit CORS issues depending on browser/network, but usually works for public data
-                const response = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDC&interval=${interval}&limit=1000`);
+                // --- 1. History & Candles (Public Data API) ---
+                // Using data-api.binance.vision as it supports CORS better than api.binance.com
+                const response = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=BTCUSDC&interval=${interval}&limit=1000`);
                 const data = await response.json();
 
                 if (Array.isArray(data)) {
