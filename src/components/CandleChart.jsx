@@ -7,10 +7,10 @@ const CandleChart = ({ interval = '1m' }) => {
     const chartRef = useRef();
     const seriesRef = useRef();
 
+    // 1. Initialize Chart (Run Once)
     useEffect(() => {
         if (!chartContainerRef.current) return;
 
-        // 1. Initialize Chart
         const chart = createChart(chartContainerRef.current, {
             layout: {
                 background: { type: ColorType.Solid, color: 'transparent' },
@@ -43,6 +43,24 @@ const CandleChart = ({ interval = '1m' }) => {
         chartRef.current = chart;
         seriesRef.current = candlestickSeries;
 
+        const handleResize = () => {
+            if (chartContainerRef.current) {
+                chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+            }
+        };
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            chart.remove();
+        };
+    }, []);
+
+    // 2. Handle Data & Subscriptions updates (On Interval Change)
+    useEffect(() => {
+        if (!seriesRef.current) return;
+
+        const candlestickSeries = seriesRef.current;
         // Tracks active price lines by order ID to prevent flickering
         const activeLinesMap = new Map();
 
