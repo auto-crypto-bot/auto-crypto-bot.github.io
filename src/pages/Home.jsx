@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Wallet, ArrowUpRight, ArrowDownLeft, Activity, Clock, Server, TrendingUp, Calendar, Layers } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 const Home = () => {
     // State
@@ -31,79 +32,140 @@ const Home = () => {
     const apiLatency = "24ms"; // Keep mock for now
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // Fetch Balances
-                const balanceRes = await fetch('/api/balances');
-                const balanceData = await balanceRes.json();
-
-                // Fetch Ticker
-                const tickerRes = await fetch('/api/v3/ticker/24hr?symbol=BTCUSDC');
-                const tickerData = await tickerRes.json();
-
-                // Fetch Positions & Config
-                const posRes = await fetch('/api/positions');
-                const posData = await posRes.json();
-                const configRes = await fetch('/api/config');
-                const configData = await configRes.json();
-
-                // Fetch Stats
-                const statsRes = await fetch('/api/stats');
-                const statsData = await statsRes.json();
-
-                // Fetch System Health & Logs
-                const healthRes = await fetch('/api/system/health');
-                const healthData = await healthRes.json();
-
-                const logsRes = await fetch('/api/system/logs');
-                const logsData = await logsRes.json();
-
-                if (balanceData && tickerData) {
-                    setBalances({
-                        BTC: balanceData.BTC || { free: 0, frozen: 0 },
-                        USDC: balanceData.USDC || { free: 0, frozen: 0 }
-                    });
-
-                    const btcPrice = parseFloat(tickerData.lastPrice || 0);
-                    const btcAmount = (balanceData.BTC?.free || 0) + (balanceData.BTC?.frozen || 0);
-                    const usdcAmount = (balanceData.USDC?.free || 0) + (balanceData.USDC?.frozen || 0);
-
-                    const totalVal = (btcAmount * btcPrice) + usdcAmount;
-                    setPortfolioValue(totalVal);
-                    setTicker({ price: btcPrice });
-                }
-
-                if (posData && configData) {
-                    // Count only positions with limit sell (TP_PLACED)
-                    const activeCount = posData.filter(p => p.status === 'TP_PLACED').length;
-                    setPositionsInfo({
-                        active: activeCount,
-                        max: configData.max_positions || 40,
-                        quantity: configData.quantity || 0
-                    });
-                }
-
-                if (statsData) {
-                    setStats(statsData);
-                }
-
-                if (healthData) {
-                    setSystemHealth(healthData);
-                }
-
-                if (logsData) {
-                    setSystemLogs(logsData);
-                }
-
-            } catch (err) {
-                console.error("Failed to fetch dashboard data:", err);
+        // Helper to update portfolio value
+        const updatePortfolio = (currentBalances, currentTicker) => {
+            if (currentBalances && currentTicker.lastPrice) {
+                const btcPrice = parseFloat(currentTicker.lastPrice || 0);
+                const btcAmount = (currentBalances.BTC?.free || 0) + (currentBalances.BTC?.frozen || 0);
+                const usdcAmount = (currentBalances.USDC?.free || 0) + (currentBalances.USDC?.frozen || 0);
+                setPortfolioValue((btcAmount * btcPrice) + usdcAmount);
             }
         };
 
-        fetchData();
-        const interval = setInterval(fetchData, 5000);
-        return () => clearInterval(interval);
+        // 1. Real-time Subscriptions (Ticker & Balance)
+        const setupSubscriptions = () => {
+            // Initial Fetch for fast load
+            supabase.from('strategy_stats').select('key, value').in('key', ['ticker_BTCUSDC', 'balances']).then(({ data }) => {
+                if (data) {
+                    let initialTicker = { price: 0, lastPrice: 0 };
+                    let initialBalances = { BTC: { free: 0, frozen: 0 }, USDC: { free: 0, frozen: 0 } };
+
+                    data.forEach(row => {
+                        if (row.key === 'ticker_BTCUSDC') {
+                            try { initialTicker = JSON.parse(row.value); setTicker(initialTicker); } catch (e) { console.error("Error parsing ticker:", e); }
+                        } else if (row.key === 'balances') {
+                            try { initialBalances = JSON.parse(row.value); setBalances(initialBalances); } catch (e) { console.error("Error parsing balances:", e); }
+                        }
+                    });
+                    // Update portfolio value after initial fetch of both
+                    updatePortfolio(initialBalances, initialTicker);
+                }
+            });
+
+            const sub = supabase.channel('home-realtime')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'strategy_stats' }, (payload) => {
+                    const { key, value } = payload.new;
+                    if (!value) return;
+                    try {
+                        const parsed = JSON.parse(value);
+                        if (key === 'ticker_BTCUSDC') {
+                            setTicker(parsed);
+                        } else if (key === 'balances') {
+                            setBalances(parsed);
+                        }
+                    } catch (e) {
+                        console.error("Error parsing real-time update:", e);
+                    }
+                })
+                .subscribe();
+            return sub;
+        };
+
+        const sub = setupSubscriptions();
+
+        // 2. Polling for Stats, Positions, Logs (Every 5s)
+        const fetchPolledData = async () => {
+            // Positions
+            const { count, error: posError } = await supabase.from('strategy_positions').select('*', { count: 'exact', head: true }).eq('status', 'TP_PLACED');
+            if (posError) console.error("Error fetching positions:", posError);
+            if (count !== null) setPositionsInfo(prev => ({ ...prev, active: count }));
+
+            // Stats (Aggregated from completed_cycles)
+            const { data: cycles, error: cyclesError } = await supabase.from('completed_cycles').select('profit, end_time');
+            if (cyclesError) console.error("Error fetching completed cycles:", cyclesError);
+
+            if (cycles) {
+                const total_pl = cycles.reduce((acc, c) => acc + (c.profit || 0), 0);
+                // Runtime: Mock or fetch from start logs? Keeping logic simple, maybe use earliest cycle?
+                // Let's use earliest cycle time as start time proxy for now
+                const startTime = cycles.length > 0 ? Math.min(...cycles.map(c => new Date(c.end_time).getTime() / 1000)) : Date.now() / 1000;
+                const runtime = (Date.now() / 1000) - startTime;
+
+                // 24h
+                const oneDayAgo = (Date.now() / 1000) - 86400;
+                const recent = cycles.filter(c => (new Date(c.end_time).getTime() / 1000) > oneDayAgo);
+                const profit_24h = recent.reduce((acc, c) => acc + (c.profit || 0), 0);
+
+                setStats({
+                    total_pl,
+                    runtime_seconds: runtime, // rough approx
+                    profit_24h,
+                    cycles_24h: recent.length
+                });
+            }
+
+            // Logs
+            const { data: logs, error: logsError } = await supabase.from('logs').select('message, timestamp').order('timestamp', { ascending: false }).limit(20);
+            if (logsError) console.error("Error fetching logs:", logsError);
+            if (logs) {
+                setSystemLogs(logs.map(l => `[${new Date(l.timestamp).toLocaleTimeString()}] ${l.message}`));
+            }
+
+            // System Health - Keeping original API call for now as not specified in Supabase refactor
+            try {
+                const healthRes = await fetch('/api/system/health');
+                const healthData = await healthRes.json();
+                if (healthData) {
+                    setSystemHealth(healthData);
+                }
+            } catch (err) {
+                console.error("Failed to fetch system health:", err);
+            }
+
+            // Fetch config for max_positions and quantity
+            try {
+                const configRes = await fetch('/api/config');
+                const configData = await configRes.json();
+                if (configData) {
+                    setPositionsInfo(prev => ({
+                        ...prev,
+                        max: configData.max_positions || 40,
+                        quantity: configData.quantity || 0
+                    }));
+                }
+            } catch (err) {
+                console.error("Failed to fetch config:", err);
+            }
+        };
+
+        fetchPolledData();
+        const interval = setInterval(fetchPolledData, 5000);
+
+        return () => {
+            supabase.removeChannel(sub);
+            clearInterval(interval);
+        };
     }, []);
+
+    // Recalc Portfolio when balances or ticker change
+    useEffect(() => {
+        if (balances && ticker.lastPrice) {
+            const btcPrice = parseFloat(ticker.lastPrice || 0);
+            const btcAmount = (balances.BTC?.free || 0) + (balances.BTC?.frozen || 0);
+            const usdcAmount = (balances.USDC?.free || 0) + (balances.USDC?.frozen || 0);
+            setPortfolioValue((btcAmount * btcPrice) + usdcAmount);
+        }
+    }, [balances, ticker]);
 
     return (
         <div style={{ height: '100%', display: 'flex', gap: '1.5rem', overflow: 'hidden' }} className="dashboard-container">

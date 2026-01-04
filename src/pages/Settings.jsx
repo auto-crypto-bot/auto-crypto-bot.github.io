@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Save, RefreshCw, Shield, Key, Sliders, Download, Terminal, AlertTriangle, Info } from 'lucide-react';
 
+import { supabase } from '../lib/supabase';
+
 const Settings = () => {
     // Strategy Parameters State
     const [gridLevels, setGridLevels] = useState(50); // Maps to max_positions
@@ -25,38 +27,46 @@ const Settings = () => {
 
     useEffect(() => {
         const fetchConfig = async () => {
-            try {
-                const res = await fetch('/api/config');
-                const data = await res.json();
-                if (data) {
-                    setFullConfig(data);
+            const { data } = await supabase
+                .from('strategy_stats')
+                .select('value')
+                .eq('key', 'bot_configuration')
+                .single();
+
+            if (data?.value) {
+                try {
+                    const config = JSON.parse(data.value);
+                    setFullConfig(config);
 
                     // Map config keys to state
-                    if (data.max_positions !== undefined) setGridLevels(data.max_positions);
-                    if (data.quantity !== undefined) setQuantity(data.quantity);
-                    if (data.grid_interval !== undefined) setGridGap(data.grid_interval);
+                    if (config.max_positions !== undefined) setGridLevels(config.max_positions);
+                    if (config.quantity !== undefined) setQuantity(config.quantity);
+                    if (config.grid_interval !== undefined) setGridGap(config.grid_interval);
 
-                    if (data.upper_price_limit !== undefined) setUpperPrice(data.upper_price_limit);
-                    if (data.lower_price_limit !== undefined) setLowerPrice(data.lower_price_limit);
+                    if (config.upper_price_limit !== undefined) setUpperPrice(config.upper_price_limit);
+                    if (config.lower_price_limit !== undefined) setLowerPrice(config.lower_price_limit);
+                } catch (e) {
+                    console.error("Config Parse Error", e);
                 }
-            } catch (err) {
-                console.error("Failed to load config:", err);
             }
         };
         fetchConfig();
     }, []);
 
-    // Poll for Live Price every 10 seconds
+    // Poll for Live Price via Supabase (Cache)
     useEffect(() => {
         const fetchPrice = async () => {
-            try {
-                const res = await fetch('/api/stats');
-                const data = await res.json();
-                if (data && data.current_price) {
-                    setCurrentPrice(data.current_price);
-                }
-            } catch (err) {
-                console.error("Failed to fetch live price:", err);
+            const { data } = await supabase
+                .from('strategy_stats')
+                .select('value')
+                .eq('key', 'ticker_BTCUSDC')
+                .single();
+
+            if (data?.value) {
+                try {
+                    const t = JSON.parse(data.value);
+                    if (t.lastPrice) setCurrentPrice(parseFloat(t.lastPrice));
+                } catch { }
             }
         };
 
@@ -64,7 +74,7 @@ const Settings = () => {
         fetchPrice();
 
         // Interval
-        const interval = setInterval(fetchPrice, 10000);
+        const interval = setInterval(fetchPrice, 5000);
         return () => clearInterval(interval);
     }, []);
 
@@ -82,34 +92,23 @@ const Settings = () => {
                 quantity: parseFloat(quantity),
                 grid_interval: parseFloat(gridGap),
                 upper_price_limit: parseFloat(upperPrice),
-                lower_price_limit: parseFloat(lowerPrice)
+                lower_price_limit: parseFloat(lowerPrice),
+                profit_target: fullConfig.profit_target || 50.0,
+                status: fullConfig.status || "RUNNING"
             };
 
-            // Ensure defaults
-            if (!payload.profit_target) payload.profit_target = 50.0;
-            if (!payload.status) payload.status = "RUNNING";
+            const { error } = await supabase
+                .from('strategy_stats')
+                .upsert({
+                    key: 'bot_configuration',
+                    value: JSON.stringify(payload)
+                });
 
-            const res = await fetch('/api/config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                console.log("Strategy updated:", data);
-                // Refresh config
-                const newConfigRes = await fetch('/api/config');
-                const newConfig = await newConfigRes.json();
-
-                setFullConfig(newConfig);
-                if (newConfig.max_positions !== undefined) setGridLevels(newConfig.max_positions);
-                if (newConfig.quantity !== undefined) setQuantity(newConfig.quantity);
-                if (newConfig.grid_interval !== undefined) setGridGap(newConfig.grid_interval);
-                if (newConfig.upper_price_limit !== undefined) setUpperPrice(newConfig.upper_price_limit);
-                if (newConfig.lower_price_limit !== undefined) setLowerPrice(newConfig.lower_price_limit);
+            if (!error) {
+                console.log("Strategy updated to Supabase");
+                setFullConfig(payload);
             } else {
-                console.error("Failed to update strategy");
+                console.error("Failed to update strategy", error);
             }
         } catch (err) {
             console.error("Error applying strategy:", err);

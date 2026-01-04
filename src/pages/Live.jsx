@@ -2,28 +2,52 @@ import React, { useState, useEffect } from 'react';
 import CandleChart from '../components/CandleChart';
 import LiveActivity from '../components/LiveActivity';
 import { Settings } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 const Live = () => {
     const [timeframe, setTimeframe] = useState('1m');
     const [ticker, setTicker] = useState(null);
+    const symbol = "BTCUSDC";
 
-    // Fetch 24h Ticker Data
+    // Real-time Ticker from Supabase
     useEffect(() => {
-        const fetchTicker = async () => {
-            try {
-                // Proxy URL
-                const res = await fetch('/api/v3/ticker/24hr?symbol=BTCUSDC');
-                const data = await res.json();
-                setTicker(data);
-            } catch (err) {
-                console.error("Failed to fetch ticker:", err);
+        const fetchInitialTicker = async () => {
+            const { data } = await supabase
+                .from('strategy_stats')
+                .select('value')
+                .eq('key', `ticker_${symbol}`)
+                .single();
+            if (data?.value) {
+                try {
+                    setTicker(JSON.parse(data.value));
+                } catch (e) {
+                    console.error("Ticker Parse Error", e);
+                }
             }
         };
 
-        fetchTicker();
-        const id = setInterval(fetchTicker, 1000);
-        return () => clearInterval(id);
-    }, []);
+        fetchInitialTicker();
+
+        const subscription = supabase
+            .channel('ticker-updates')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'strategy_stats',
+                filter: `key=eq.ticker_${symbol}`
+            }, (payload) => {
+                if (payload.new && payload.new.value) {
+                    try {
+                        setTicker(JSON.parse(payload.new.value));
+                    } catch (e) { console.error(e); }
+                }
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(subscription);
+        };
+    }, [symbol]);
 
     const formatPrice = (p) => p ? parseFloat(p).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '---';
     const formatChange = (c) => c ? parseFloat(c).toFixed(2) : '0.00';

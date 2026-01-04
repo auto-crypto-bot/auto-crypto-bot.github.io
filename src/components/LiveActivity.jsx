@@ -1,37 +1,70 @@
-import React from 'react';
-import { ArrowUpRight, ArrowDownRight, RefreshCw, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowUpRight, ArrowDownRight, AlertCircle } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 const LiveActivity = () => {
-    const [logs, setLogs] = React.useState([]);
+    const [logs, setLogs] = useState([]);
 
-    React.useEffect(() => {
+    useEffect(() => {
         const fetchActivity = async () => {
-            try {
-                const res = await fetch('/api/trades?limit=20');
-                const data = await res.json();
+            const { data } = await supabase
+                .from('order_updates')
+                .select('*')
+                .eq('status', 2) // FILLED
+                .order('event_time', { ascending: false })
+                .limit(20);
 
-                const formatted = data.map((t, idx) => {
-                    const isBuy = t.side === 'BUY';
-                    const date = new Date(t.time);
-                    const timeStr = date.toLocaleTimeString('en-US', { hour12: false });
+            if (data) formatAndSet(data);
+        };
 
-                    return {
-                        id: idx,
-                        type: isBuy ? 'buy' : 'sell',
-                        message: isBuy ? 'Buy Order Executed' : 'Sell Order Executed',
-                        details: `${parseFloat(t.quantity)} BTC @ $${parseFloat(t.price).toLocaleString()}`,
-                        time: timeStr
-                    };
-                });
-                setLogs(formatted);
-            } catch (e) {
-                console.error("Failed to fetch activity", e);
-            }
+        const formatAndSet = (rawData) => {
+            const formatted = rawData.map((t, idx) => {
+                // Side: 1=BUY, 2=SELL (Assuming Mexc numeric)
+                const isBuy = t.side === 1 || t.side === 'BUY';
+                const date = new Date(t.event_time); // Ensure ms timestamp if int
+                const timeStr = date.toLocaleTimeString('en-US', { hour12: false });
+
+                return {
+                    id: t.id || idx,
+                    type: isBuy ? 'buy' : 'sell',
+                    message: isBuy ? 'Buy Order Executed' : 'Sell Order Executed',
+                    details: `${parseFloat(t.quantity)} BTC @ $${parseFloat(t.price).toLocaleString()}`,
+                    time: timeStr
+                };
+            });
+            setLogs(formatted);
         };
 
         fetchActivity();
-        const interval = setInterval(fetchActivity, 2000);
-        return () => clearInterval(interval);
+
+        const subscription = supabase
+            .channel('activity-feed')
+            .on('postgres_changes', {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'order_updates',
+                filter: 'status=eq.2'
+            }, (payload) => {
+                setLogs(prev => {
+                    const newLog = payload.new;
+                    const isBuy = newLog.side === 1;
+                    const date = new Date(newLog.event_time);
+                    const item = {
+                        id: newLog.id,
+                        type: isBuy ? 'buy' : 'sell',
+                        message: isBuy ? 'Buy Order Executed' : 'Sell Order Executed',
+                        details: `${parseFloat(newLog.quantity)} BTC @ $${parseFloat(newLog.price).toLocaleString()}`,
+                        time: date.toLocaleTimeString('en-US', { hour12: false })
+                    };
+                    // Add new at top, keep 20
+                    return [item, ...prev].slice(0, 20);
+                });
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(subscription);
+        };
     }, []);
 
     const getIcon = (type) => {

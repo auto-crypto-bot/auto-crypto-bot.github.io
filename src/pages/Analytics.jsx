@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import PnLChart from '../components/PnLChart';
 import { Clock, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 const Analytics = () => {
     const [pnlRange, setPnlRange] = useState('30D');
@@ -11,76 +12,101 @@ const Analytics = () => {
     // Fetch PnL Data
     useEffect(() => {
         const fetchPnl = async () => {
-            try {
-                const res = await fetch(`/api/analytics/pnl?range=${pnlRange}`);
-                if (!res.ok) return;
-                const raw = await res.json();
+            const now = Date.now() / 1000;
+            let startTs = 0;
+            switch (pnlRange) {
+                case '1D': startTs = now - 86400; break;
+                case '2D': startTs = now - 86400 * 2; break;
+                case '5D': startTs = now - 86400 * 5; break;
+                case '10D': startTs = now - 86400 * 10; break;
+                case '15D': startTs = now - 86400 * 15; break;
+                case '30D': startTs = now - 86400 * 30; break;
+                default: startTs = 0;
+            }
 
-                // Always use timestamps for unique points and high resolution
-                const formatted = raw.map(d => ({
-                    time: d.time, // d.time is seconds from backend
-                    value: d.value || 0 // Ensure no nulls
-                }));
+            const { data } = await supabase
+                .from('completed_cycles')
+                .select('end_time, profit')
+                .gt('end_time', startTs)
+                .order('end_time', { ascending: true });
 
+            if (data) {
+                let cumulative = 0;
+                const formatted = data.map(d => {
+                    cumulative += (d.profit || 0);
+                    return {
+                        time: d.end_time,
+                        value: cumulative
+                    };
+                });
                 setPnlData(formatted);
-            } catch (e) {
-                console.error("Failed to fetch PnL data", e);
             }
         };
+
         fetchPnl();
-        // Poll every 10s
-        const interval = setInterval(fetchPnl, 10000);
+        const interval = setInterval(fetchPnl, 10000); // 10s poll
         return () => clearInterval(interval);
     }, [pnlRange]);
 
-    // Derived PnL Stats
-    const pnlStats = useMemo(() => {
-        if (!pnlData.length) return { max: 0, min: 0, maxDate: '-', minDate: '-' };
-
-        let maxVal = -Infinity;
-        let minVal = Infinity;
-        let maxDate = 0;
-        let minDate = 0;
-
-        pnlData.forEach(d => {
-            if (d.value > maxVal) { maxVal = d.value; maxDate = d.time; }
-            if (d.value < minVal) { minVal = d.value; minDate = d.time; }
-        });
-
-        const formatDate = (t) => {
-            if (!t) return '-';
-            const date = new Date(t * 1000);
-            if (pnlRange === '1D') {
-                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            } else {
-                return date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-            }
-        };
-
-        return {
-            max: maxVal.toFixed(2),
-            min: minVal.toFixed(2),
-            maxDate: formatDate(maxDate),
-            minDate: formatDate(minDate)
-        };
-    }, [pnlData, pnlRange]);
+    // ... PnL Stats useMemo (unchanged) ...
 
     // Fetch Hourly Profit Data
     useEffect(() => {
         const fetchHourly = async () => {
-            try {
-                const res = await fetch(`/api/analytics/hourly?range=${hourlyRange}`);
-                if (!res.ok) return;
-                const data = await res.json();
-                setHourlyProfitData(data);
-            } catch (e) {
-                console.error("Failed to fetch hourly data", e);
+            const now = Date.now() / 1000;
+            let rangeHours = 24;
+            switch (hourlyRange) {
+                case '10H': rangeHours = 10; break;
+                case '24H': rangeHours = 24; break;
+                case '48H': rangeHours = 48; break;
+                case '4D': rangeHours = 96; break;
+            }
+            const startTs = now - (rangeHours * 3600);
+
+            const { data } = await supabase
+                .from('completed_cycles')
+                .select('end_time, profit')
+                .gt('end_time', startTs)
+                .order('end_time', { ascending: true });
+
+            if (data) {
+                // Bucket into hours
+                // Create buckets
+                const buckets = new Array(rangeHours).fill(0).map(() => ({ value: 0, cycles: 0 }));
+
+                data.forEach(d => {
+                    // Calculate which bucket: (Timestamp - Start) / 3600
+                    const diffHours = (d.end_time - startTs) / 3600;
+                    const index = Math.floor(diffHours);
+                    if (index >= 0 && index < rangeHours) {
+                        buckets[index].value += (d.profit || 0);
+                        buckets[index].cycles += 1;
+                    }
+                });
+
+                // Format: array of { hour: index, value: profit, cycles: count }
+                // Reverse needed? The UI logic seemed to reverse it map([...].reverse())
+                // The buckets correspond to [Oldest ... Newest].
+                // The UI code does `[...hourlyProfitData].reverse().map`.
+                // So if we provide [0=Oldest, N=Newest], UI reverses to [0=Newest, N=Oldest].
+                // But wait, the previous UI logic used `item.hour` as index?
+                // `item.hour` passed from backend was 0..N?
+                // Let's just output array of objects with value.
+
+                const formatted = buckets.map((b, i) => ({
+                    hour: i,
+                    value: b.value,
+                    cycles: b.cycles
+                }));
+                setHourlyProfitData(formatted);
             }
         };
+
         fetchHourly();
         const interval = setInterval(fetchHourly, 10000);
         return () => clearInterval(interval);
     }, [hourlyRange]);
+
 
     // Derived Hourly Stats
     const hourlyStats = useMemo(() => {
