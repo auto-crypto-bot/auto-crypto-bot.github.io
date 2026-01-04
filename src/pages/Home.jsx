@@ -10,8 +10,26 @@ const Home = () => {
     const [positionsInfo, setPositionsInfo] = useState({ active: 0, max: 40 });
     const [stats, setStats] = useState({ total_pl: 0, runtime_seconds: 0, profit_24h: 0, cycles_24h: 0 });
     const [realtimeStatus, setRealtimeStatus] = useState('CONNECTING');
+    const [systemHealth, setSystemHealth] = useState({ cpu_load: '0%', memory_usage: '0 MB', disk_space: '0 GB Free' });
+    const [systemLogs, setSystemLogs] = useState([]);
 
-    // ... (existing helper functions)
+    const formatRuntime = (seconds) => {
+        if (!seconds) return "0m";
+        const d = Math.floor(seconds / (3600 * 24));
+        const h = Math.floor((seconds % (3600 * 24)) / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+
+        let parts = [];
+        if (d > 0) parts.push(`${d}d`);
+        if (h > 0) parts.push(`${h}h`);
+        parts.push(`${m}m`);
+        return parts.join(' ');
+    };
+
+    // Investment Data (Hardcoded as requested)
+    const initialInvestment = 50.95;
+    const investmentDate = "Dec 14, 2025";
+    const apiLatency = "24ms"; // Keep mock for now
 
     useEffect(() => {
         // ... (updatePortfolio logic)
