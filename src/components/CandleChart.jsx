@@ -49,8 +49,11 @@ const CandleChart = ({ interval = '1m' }) => {
         // Data Fetching & Subscriptions
         const fetchData = async () => {
             try {
+                // Binannce API expects '1h' not '60m'
+                const apiInterval = interval === '60m' ? '1h' : interval;
+
                 // 1. Initial History (REST)
-                const response = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=BTCUSDC&interval=${interval}&limit=1000`);
+                const response = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=BTCUSDC&interval=${apiInterval}&limit=1000`);
                 const data = await response.json();
                 if (Array.isArray(data)) {
                     const candleData = data.map(d => ({
@@ -168,7 +171,8 @@ const CandleChart = ({ interval = '1m' }) => {
         fetchData();
 
         // --- Real-time: Binance WebSocket (Candles) ---
-        const ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdc@kline_${interval}`);
+        const wsInterval = interval === '60m' ? '1h' : interval;
+        const ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdc@kline_${wsInterval}`);
         ws.onmessage = (event) => {
             const message = JSON.parse(event.data);
             if (message.k) {
