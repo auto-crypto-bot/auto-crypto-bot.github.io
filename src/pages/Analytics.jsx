@@ -10,133 +10,89 @@ const Analytics = () => {
     const [hourlyProfitData, setHourlyProfitData] = useState([]);
 
     // Fetch PnL Data
+    // Fetch Data Helper
+    const fetchData = async () => {
+        // PnL Data
+        const now = Date.now() / 1000;
+        let pnlStartTs = 0;
+        switch (pnlRange) {
+            case '1D': pnlStartTs = now - 86400; break;
+            case '2D': pnlStartTs = now - 86400 * 2; break;
+            case '5D': pnlStartTs = now - 86400 * 5; break;
+            case '10D': pnlStartTs = now - 86400 * 10; break;
+            case '15D': pnlStartTs = now - 86400 * 15; break;
+            case '30D': pnlStartTs = now - 86400 * 30; break;
+            default: pnlStartTs = 0;
+        }
+
+        const { data: pData } = await supabase
+            .from('completed_cycles')
+            .select('close_time, profit')
+            .gt('close_time', new Date(pnlStartTs * 1000).toISOString())
+            .order('close_time', { ascending: true });
+
+        if (pData) {
+            let cumulative = 0;
+            const formatted = pData.map(d => {
+                cumulative += (d.profit || 0);
+                return {
+                    time: new Date(d.close_time).getTime() / 1000,
+                    value: cumulative
+                };
+            });
+            setPnlData(formatted);
+        }
+
+        // Hourly Data
+        let rangeHours = 24;
+        switch (hourlyRange) {
+            case '10H': rangeHours = 10; break;
+            case '24H': rangeHours = 24; break;
+            case '48H': rangeHours = 48; break;
+            case '4D': rangeHours = 96; break;
+        }
+        const hourlyStartTs = now - (rangeHours * 3600);
+
+        const { data: hData } = await supabase
+            .from('completed_cycles')
+            .select('close_time, profit')
+            .gt('close_time', new Date(hourlyStartTs * 1000).toISOString())
+            .order('close_time', { ascending: true });
+
+        if (hData) {
+            const buckets = new Array(rangeHours).fill(0).map(() => ({ value: 0, cycles: 0 }));
+            hData.forEach(d => {
+                const cycleTime = new Date(d.close_time).getTime() / 1000;
+                const diffHours = (cycleTime - hourlyStartTs) / 3600;
+                const index = Math.floor(diffHours);
+                if (index >= 0 && index < rangeHours) {
+                    buckets[index].value += (d.profit || 0);
+                    buckets[index].cycles += 1;
+                }
+            });
+            const formatted = buckets.map((b, i) => ({
+                hour: i,
+                value: b.value,
+                cycles: b.cycles
+            }));
+            setHourlyProfitData(formatted);
+        }
+    };
+
+    // Initial Fetch & Realtime Subscription
     useEffect(() => {
-        const fetchPnl = async () => {
-            const now = Date.now() / 1000;
-            let startTs = 0;
-            switch (pnlRange) {
-                case '1D': startTs = now - 86400; break;
-                case '2D': startTs = now - 86400 * 2; break;
-                case '5D': startTs = now - 86400 * 5; break;
-                case '10D': startTs = now - 86400 * 10; break;
-                case '15D': startTs = now - 86400 * 15; break;
-                case '30D': startTs = now - 86400 * 30; break;
-                default: startTs = 0;
-            }
+        fetchData();
 
-            const { data } = await supabase
-                .from('completed_cycles')
-                .select('close_time, profit')
-                .gt('close_time', new Date(startTs * 1000).toISOString())
-                .order('close_time', { ascending: true });
+        const subscription = supabase.channel('analytics-updates')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'completed_cycles' }, () => {
+                fetchData();
+            })
+            .subscribe();
 
-            if (data) {
-                let cumulative = 0;
-                const formatted = data.map(d => {
-                    cumulative += (d.profit || 0);
-                    return {
-                        time: new Date(d.close_time).getTime() / 1000,
-                        value: cumulative
-                    };
-                });
-                setPnlData(formatted);
-            }
+        return () => {
+            supabase.removeChannel(subscription);
         };
-
-        fetchPnl();
-        const interval = setInterval(fetchPnl, 10000); // 10s poll
-        return () => clearInterval(interval);
-    }, [pnlRange]);
-
-    // Derived PnL Stats
-    const pnlStats = useMemo(() => {
-        if (!pnlData.length) return { max: 0, min: 0, maxDate: '-', minDate: '-' };
-
-        let max = -Infinity;
-        let min = Infinity;
-        let maxDate = '-';
-        let minDate = '-';
-
-        pnlData.forEach(d => {
-            if (d.value > max) {
-                max = d.value;
-                maxDate = new Date(d.time * 1000).toLocaleDateString();
-            }
-            if (d.value < min) {
-                min = d.value;
-                minDate = new Date(d.time * 1000).toLocaleDateString();
-            }
-        });
-
-        // Handle case where no data processed (shouldn't happen if length > 0)
-        if (max === -Infinity) max = 0;
-        if (min === Infinity) min = 0;
-
-        return {
-            max: max.toFixed(2),
-            min: min.toFixed(2),
-            maxDate,
-            minDate
-        };
-    }, [pnlData]);
-
-    // Fetch Hourly Profit Data
-    useEffect(() => {
-        const fetchHourly = async () => {
-            const now = Date.now() / 1000;
-            let rangeHours = 24;
-            switch (hourlyRange) {
-                case '10H': rangeHours = 10; break;
-                case '24H': rangeHours = 24; break;
-                case '48H': rangeHours = 48; break;
-                case '4D': rangeHours = 96; break;
-            }
-            const startTs = now - (rangeHours * 3600);
-
-            const { data } = await supabase
-                .from('completed_cycles')
-                .select('close_time, profit')
-                .gt('close_time', new Date(startTs * 1000).toISOString())
-                .order('close_time', { ascending: true });
-
-            if (data) {
-                // Bucket into hours
-                // Create buckets
-                const buckets = new Array(rangeHours).fill(0).map(() => ({ value: 0, cycles: 0 }));
-
-                data.forEach(d => {
-                    // Calculate which bucket: (Timestamp - Start) / 3600
-                    const cycleTime = new Date(d.close_time).getTime() / 1000;
-                    const diffHours = (cycleTime - startTs) / 3600;
-                    const index = Math.floor(diffHours);
-                    if (index >= 0 && index < rangeHours) {
-                        buckets[index].value += (d.profit || 0);
-                        buckets[index].cycles += 1;
-                    }
-                });
-
-                // Format: array of { hour: index, value: profit, cycles: count }
-                // Reverse needed? The UI logic seemed to reverse it map([...].reverse())
-                // The buckets correspond to [Oldest ... Newest].
-                // The UI code does `[...hourlyProfitData].reverse().map`.
-                // So if we provide [0=Oldest, N=Newest], UI reverses to [0=Newest, N=Oldest].
-                // But wait, the previous UI logic used `item.hour` as index?
-                // `item.hour` passed from backend was 0..N?
-                // Let's just output array of objects with value.
-
-                const formatted = buckets.map((b, i) => ({
-                    hour: i,
-                    value: b.value,
-                    cycles: b.cycles
-                }));
-                setHourlyProfitData(formatted);
-            }
-        };
-
-        fetchHourly();
-        const interval = setInterval(fetchHourly, 10000);
-        return () => clearInterval(interval);
-    }, [hourlyRange]);
+    }, [pnlRange, hourlyRange]);
 
 
     // Derived Hourly Stats
