@@ -308,6 +308,27 @@ const Settings = () => {
                             <Download size={18} color="var(--text-secondary)" />
                             Export Logs
                         </button>
+
+                        <button
+                            onClick={async () => {
+                                await supabase.auth.signOut();
+                                window.location.href = '/'; // Redirects to login via protected route logic
+                            }}
+                            style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                                width: '100%', padding: '1rem',
+                                background: 'rgba(255, 77, 77, 0.1)',
+                                color: '#ff4d4d', border: '1px solid rgba(255, 77, 77, 0.2)', borderRadius: '8px',
+                                fontWeight: '600', cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                marginTop: '1rem' // Visual separation
+                            }}
+                            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 77, 77, 0.2)'}
+                            onMouseLeave={(e) => e.target.style.background = 'rgba(255, 77, 77, 0.1)'}
+                        >
+                            <div style={{ transform: 'rotate(180deg)' }}><Terminal size={18} /></div>
+                            Sign Out
+                        </button>
                     </div>
                 </div>
 
