@@ -1,6 +1,6 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Activity, Settings as SettingsIcon, Zap } from 'lucide-react';
+import { LayoutDashboard, Radio, BarChart2, Settings as SettingsIcon, Zap } from 'lucide-react';
 import Home from './pages/Home';
 import Live from './pages/Live';
 import Analytics from './pages/Analytics';
@@ -21,23 +21,30 @@ const AppContent = () => {
   }
 
   return (
-    <div className="app-container">
-      <nav className="sidebar">
-        <div className="logo-container">
+    <div className="app-layout">
+      <nav className="sidebar-container">
+        {/* Logo Section */}
+        <div className="sidebar-logo">
           <Zap size={28} color="#00ff88" fill="#00ff88" style={{ filter: 'drop-shadow(0 0 8px rgba(0,255,136,0.5))' }} />
-          <span className="logo-text">AutoBot</span>
+          <span className="logo-text">BotDash</span>
         </div>
 
-        <div className="nav-links">
-          <NavLink to="/" icon={<LayoutDashboard size={20} />} label="Dashboard" active={location.pathname === '/'} />
-          <NavLink to="/live" icon={<Activity size={20} />} label="Live Activity" active={location.pathname === '/live'} />
-          <NavLink to="/analytics" icon={<Activity size={20} />} label="Analytics" active={location.pathname === '/analytics'} />
-          <div style={{ flex: 1 }} />
+        {/* Status Badge */}
+        <div className="sidebar-status">
+          <span>RUNNING</span>
+          <div className="status-dot"></div>
+        </div>
+
+        {/* Navigation */}
+        <div className="sidebar-nav">
+          <NavLink to="/" icon={<LayoutDashboard size={20} />} label="Home" active={location.pathname === '/'} />
+          <NavLink to="/live" icon={<Radio size={20} />} label="Live" active={location.pathname === '/live'} />
+          <NavLink to="/analytics" icon={<BarChart2 size={20} />} label="Analytics" active={location.pathname === '/analytics'} />
           <NavLink to="/settings" icon={<SettingsIcon size={20} />} label="Settings" active={location.pathname === '/settings'} />
         </div>
       </nav>
 
-      <main className="main-view">
+      <main className="app-main">
         <Routes>
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<Home />} />
