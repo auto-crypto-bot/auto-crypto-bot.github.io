@@ -26,16 +26,16 @@ const Analytics = () => {
 
             const { data } = await supabase
                 .from('completed_cycles')
-                .select('end_time, profit')
-                .gt('end_time', startTs)
-                .order('end_time', { ascending: true });
+                .select('close_time, profit')
+                .gt('close_time', startTs)
+                .order('close_time', { ascending: true });
 
             if (data) {
                 let cumulative = 0;
                 const formatted = data.map(d => {
                     cumulative += (d.profit || 0);
                     return {
-                        time: d.end_time,
+                        time: d.close_time,
                         value: cumulative
                     };
                 });
@@ -65,9 +65,9 @@ const Analytics = () => {
 
             const { data } = await supabase
                 .from('completed_cycles')
-                .select('end_time, profit')
-                .gt('end_time', startTs)
-                .order('end_time', { ascending: true });
+                .select('close_time, profit')
+                .gt('close_time', startTs)
+                .order('close_time', { ascending: true });
 
             if (data) {
                 // Bucket into hours
@@ -76,7 +76,7 @@ const Analytics = () => {
 
                 data.forEach(d => {
                     // Calculate which bucket: (Timestamp - Start) / 3600
-                    const diffHours = (d.end_time - startTs) / 3600;
+                    const diffHours = (d.close_time - startTs) / 3600;
                     const index = Math.floor(diffHours);
                     if (index >= 0 && index < rangeHours) {
                         buckets[index].value += (d.profit || 0);

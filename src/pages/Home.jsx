@@ -45,7 +45,7 @@ const Home = () => {
         // 1. Real-time Subscriptions (Ticker & Balance)
         const setupSubscriptions = () => {
             // Initial Fetch for fast load
-            supabase.from('strategy_stats').select('key, value').in('key', ['ticker_BTCUSDC', 'balances']).then(({ data }) => {
+            supabase.from('strategy_stats').select('key, value').in('key', ['ticker_BTCUSDC', 'balances', 'bot_configuration']).then(({ data }) => {
                 if (data) {
                     let initialTicker = { price: 0, lastPrice: 0 };
                     let initialBalances = { BTC: { free: 0, frozen: 0 }, USDC: { free: 0, frozen: 0 } };
@@ -55,6 +55,15 @@ const Home = () => {
                             try { initialTicker = JSON.parse(row.value); setTicker(initialTicker); } catch (e) { console.error("Error parsing ticker:", e); }
                         } else if (row.key === 'balances') {
                             try { initialBalances = JSON.parse(row.value); setBalances(initialBalances); } catch (e) { console.error("Error parsing balances:", e); }
+                        } else if (row.key === 'bot_configuration') {
+                            try {
+                                const config = JSON.parse(row.value);
+                                setPositionsInfo(prev => ({
+                                    ...prev,
+                                    max: config.max_positions || 40,
+                                    quantity: config.quantity || 0
+                                }));
+                            } catch (e) { console.error("Error parsing config:", e); }
                         }
                     });
                     // Update portfolio value after initial fetch of both
@@ -72,6 +81,12 @@ const Home = () => {
                             setTicker(parsed);
                         } else if (key === 'balances') {
                             setBalances(parsed);
+                        } else if (key === 'bot_configuration') {
+                            setPositionsInfo(prev => ({
+                                ...prev,
+                                max: parsed.max_positions || 40,
+                                quantity: parsed.quantity || 0
+                            }));
                         }
                     } catch (e) {
                         console.error("Error parsing real-time update:", e);
@@ -91,24 +106,22 @@ const Home = () => {
             if (count !== null) setPositionsInfo(prev => ({ ...prev, active: count }));
 
             // Stats (Aggregated from completed_cycles)
-            const { data: cycles, error: cyclesError } = await supabase.from('completed_cycles').select('profit, end_time');
+            const { data: cycles, error: cyclesError } = await supabase.from('completed_cycles').select('profit, close_time');
             if (cyclesError) console.error("Error fetching completed cycles:", cyclesError);
 
             if (cycles) {
                 const total_pl = cycles.reduce((acc, c) => acc + (c.profit || 0), 0);
-                // Runtime: Mock or fetch from start logs? Keeping logic simple, maybe use earliest cycle?
-                // Let's use earliest cycle time as start time proxy for now
-                const startTime = cycles.length > 0 ? Math.min(...cycles.map(c => new Date(c.end_time).getTime() / 1000)) : Date.now() / 1000;
+                const startTime = cycles.length > 0 ? Math.min(...cycles.map(c => new Date(c.close_time).getTime() / 1000)) : Date.now() / 1000;
                 const runtime = (Date.now() / 1000) - startTime;
 
                 // 24h
                 const oneDayAgo = (Date.now() / 1000) - 86400;
-                const recent = cycles.filter(c => (new Date(c.end_time).getTime() / 1000) > oneDayAgo);
+                const recent = cycles.filter(c => (new Date(c.close_time).getTime() / 1000) > oneDayAgo);
                 const profit_24h = recent.reduce((acc, c) => acc + (c.profit || 0), 0);
 
                 setStats({
                     total_pl,
-                    runtime_seconds: runtime, // rough approx
+                    runtime_seconds: runtime,
                     profit_24h,
                     cycles_24h: recent.length
                 });
@@ -119,32 +132,6 @@ const Home = () => {
             if (logsError) console.error("Error fetching logs:", logsError);
             if (logs) {
                 setSystemLogs(logs.map(l => `[${new Date(l.timestamp).toLocaleTimeString()}] ${l.message}`));
-            }
-
-            // System Health - Keeping original API call for now as not specified in Supabase refactor
-            try {
-                const healthRes = await fetch('/api/system/health');
-                const healthData = await healthRes.json();
-                if (healthData) {
-                    setSystemHealth(healthData);
-                }
-            } catch (err) {
-                console.error("Failed to fetch system health:", err);
-            }
-
-            // Fetch config for max_positions and quantity
-            try {
-                const configRes = await fetch('/api/config');
-                const configData = await configRes.json();
-                if (configData) {
-                    setPositionsInfo(prev => ({
-                        ...prev,
-                        max: configData.max_positions || 40,
-                        quantity: configData.quantity || 0
-                    }));
-                }
-            } catch (err) {
-                console.error("Failed to fetch config:", err);
             }
         };
 
