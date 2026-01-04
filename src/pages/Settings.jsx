@@ -54,6 +54,7 @@ const Settings = () => {
     }, []);
 
     // Poll for Live Price via Supabase (Cache)
+    // Live Price via Supabase Realtime
     useEffect(() => {
         const fetchPrice = async () => {
             const { data } = await supabase
@@ -70,12 +71,28 @@ const Settings = () => {
             }
         };
 
-        // Initial fetch
         fetchPrice();
 
-        // Interval
-        const interval = setInterval(fetchPrice, 5000);
-        return () => clearInterval(interval);
+        const subscription = supabase
+            .channel('settings-price')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'strategy_stats',
+                filter: 'key=eq.ticker_BTCUSDC'
+            }, (payload) => {
+                if (payload.new && payload.new.value) {
+                    try {
+                        const t = JSON.parse(payload.new.value);
+                        if (t.lastPrice) setCurrentPrice(parseFloat(t.lastPrice));
+                    } catch { }
+                }
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(subscription);
+        };
     }, []);
 
     const handleSave = () => {
