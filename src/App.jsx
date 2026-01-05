@@ -1,6 +1,7 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Radio, BarChart2, Settings as SettingsIcon, Zap } from 'lucide-react';
+import { supabase } from './lib/supabase';
 import Home from './pages/Home';
 import Live from './pages/Live';
 import Analytics from './pages/Analytics';
@@ -8,56 +9,72 @@ import Settings from './pages/Settings';
 import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 
-const AppContent = () => {
-  const location = useLocation();
+// Bot Status State
+const [botStatus, setBotStatus] = React.useState('STOPPED');
 
-  // If on login page, don't show the sidebar layout
-  if (location.pathname === '/login') {
-    return (
-      <Routes>
-        <Route path="/login" element={<Login />} />
-      </Routes>
-    );
-  }
+React.useEffect(() => {
+  // 1. Initial Fetch
+  supabase.from('bot_control').select('status').eq('id', 1).single().then(({ data }) => {
+    if (data) setBotStatus(data.status);
+  });
 
+  // 2. Realtime Subscription
+  const statusSub = supabase.channel('bot-status-sidebar')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'bot_control', filter: 'id=eq.1' }, (payload) => {
+      if (payload.new) setBotStatus(payload.new.status);
+    })
+    .subscribe();
+
+  return () => supabase.removeChannel(statusSub);
+}, []);
+
+// If on login page, don't show the sidebar layout
+if (location.pathname === '/login') {
   return (
-    <div className="app-layout">
-      <nav className="sidebar-container">
-        {/* Logo Section */}
-        <div className="sidebar-logo">
-          <Zap size={28} color="#00ff88" fill="#00ff88" style={{ filter: 'drop-shadow(0 0 8px rgba(0,255,136,0.5))' }} />
-          <span className="logo-text">BotDash</span>
-        </div>
-
-        {/* Status Badge */}
-        <div className="sidebar-status">
-          <span>RUNNING</span>
-          <div className="status-dot"></div>
-        </div>
-
-        {/* Navigation */}
-        <div className="sidebar-nav">
-          <NavLink to="/" icon={<LayoutDashboard size={20} />} label="Home" active={location.pathname === '/'} />
-          <NavLink to="/live" icon={<Radio size={20} />} label="Live" active={location.pathname === '/live'} />
-          <NavLink to="/analytics" icon={<BarChart2 size={20} />} label="Analytics" active={location.pathname === '/analytics'} />
-          <NavLink to="/settings" icon={<SettingsIcon size={20} />} label="Settings" active={location.pathname === '/settings'} />
-        </div>
-      </nav>
-
-      <main className="app-main">
-        <Routes>
-          <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<Home />} />
-            <Route path="/live" element={<Live />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/settings" element={<Settings />} />
-          </Route>
-          {/* Fallback to login if unknown route? Or Home which redirects */}
-          <Route path="*" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-        </Routes>
-      </main>
-    </div>
+    <Routes>
+      <Route path="/login" element={<Login />} />
+    </Routes>
   );
+}
+
+return (
+  <div className="app-layout">
+    <nav className="sidebar-container">
+      {/* Logo Section */}
+      <div className="sidebar-logo">
+        <Zap size={28} color="#00ff88" fill="#00ff88" style={{ filter: 'drop-shadow(0 0 8px rgba(0,255,136,0.5))' }} />
+        <span className="logo-text">BotDash</span>
+      </div>
+
+      {/* Status Badge */}
+      <div className={`sidebar-status`}>
+        <span className={`status-text ${botStatus.toLowerCase()}`}>{botStatus}</span>
+        <div className={`status-dot ${botStatus.toLowerCase()}`}></div>
+      </div>
+
+      {/* Navigation */}
+      <div className="sidebar-nav">
+        <NavLink to="/" icon={<LayoutDashboard size={20} />} label="Home" active={location.pathname === '/'} />
+        <NavLink to="/live" icon={<Radio size={20} />} label="Live" active={location.pathname === '/live'} />
+        <NavLink to="/analytics" icon={<BarChart2 size={20} />} label="Analytics" active={location.pathname === '/analytics'} />
+        <NavLink to="/settings" icon={<SettingsIcon size={20} />} label="Settings" active={location.pathname === '/settings'} />
+      </div>
+    </nav>
+
+    <main className="app-main">
+      <Routes>
+        <Route element={<ProtectedRoute />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/live" element={<Live />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/settings" element={<Settings />} />
+        </Route>
+        {/* Fallback to login if unknown route? Or Home which redirects */}
+        <Route path="*" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+      </Routes>
+    </main>
+  </div>
+);
 };
 
 const NavLink = ({ to, icon, label, active }) => (

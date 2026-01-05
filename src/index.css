@@ -199,18 +199,54 @@ body {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-@keyframes pulse {
+50% {
+  opacity: 0.5;
+  transform: scale(0.9);
+}
+}
 
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
+/* Dynamic Status Modifiers */
+.status-dot.running {
+  background-color: var(--accent-green);
+  box-shadow: 0 0 8px var(--accent-green), 0 0 16px var(--accent-green);
+}
 
-  50% {
-    opacity: 0.5;
-    transform: scale(0.9);
-  }
+.status-dot.stopped {
+  background-color: var(--accent-red);
+  box-shadow: 0 0 8px var(--accent-red);
+  animation: none;
+  opacity: 0.6;
+}
+
+.status-dot.starting {
+  background-color: #ffd700;
+  box-shadow: 0 0 8px #ffd700;
+}
+
+.status-dot.crashed {
+  background-color: #ffaa00;
+  box-shadow: 0 0 8px #ffaa00;
+  animation: pulse 0.5s infinite;
+}
+
+.status-text {
+  transition: color 0.3s;
+}
+
+.status-text.running {
+  color: var(--accent-green);
+}
+
+.status-text.stopped {
+  color: var(--accent-red);
+}
+
+.status-text.starting {
+  color: #ffd700;
+}
+
+.status-text.crashed {
+  color: #ffaa00;
 }
 
 .sidebar-nav {

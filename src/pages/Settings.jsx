@@ -290,6 +290,77 @@ const Settings = () => {
 
             {/* Right Sidebar */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.5rem', minWidth: '300px' }} className="right-sidebar">
+
+                {/* Bot Control Panel */}
+                <div style={{
+                    background: 'var(--bg-card)',
+                    border: 'var(--glass-border)',
+                    borderRadius: '16px',
+                    padding: '1.5rem',
+                    backdropFilter: 'var(--backdrop-blur)'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '1rem' }}>
+                        <Zap size={20} color="#ffd700" />
+                        <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Service Control</h3>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                        <button
+                            onClick={() => supabase.from('bot_control').update({ command: 'START' }).eq('id', 1)}
+                            style={{
+                                background: 'rgba(0, 255, 136, 0.15)',
+                                color: '#00ff88',
+                                border: '1px solid rgba(0, 255, 136, 0.3)',
+                                borderRadius: '8px',
+                                padding: '0.8rem',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                            }}
+                            onMouseEnter={(e) => e.target.style.background = 'rgba(0, 255, 136, 0.25)'}
+                            onMouseLeave={(e) => e.target.style.background = 'rgba(0, 255, 136, 0.15)'}
+                        >
+                            START
+                        </button>
+                        <button
+                            onClick={() => supabase.from('bot_control').update({ command: 'STOP' }).eq('id', 1)}
+                            style={{
+                                background: 'rgba(255, 77, 77, 0.15)',
+                                color: '#ff4d4d',
+                                border: '1px solid rgba(255, 77, 77, 0.3)',
+                                borderRadius: '8px',
+                                padding: '0.8rem',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                            }}
+                            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 77, 77, 0.25)'}
+                            onMouseLeave={(e) => e.target.style.background = 'rgba(255, 77, 77, 0.15)'}
+                        >
+                            STOP
+                        </button>
+                    </div>
+                    <button
+                        onClick={() => supabase.from('bot_control').update({ command: 'RESTART' }).eq('id', 1)}
+                        style={{
+                            width: '100%',
+                            background: 'rgba(255, 215, 0, 0.15)',
+                            color: '#ffd700',
+                            border: '1px solid rgba(255, 215, 0, 0.3)',
+                            borderRadius: '8px',
+                            padding: '0.8rem',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                            transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => e.target.style.background = 'rgba(255, 215, 0, 0.25)'}
+                        onMouseLeave={(e) => e.target.style.background = 'rgba(255, 215, 0, 0.15)'}
+                    >
+                        <RefreshCw size={16} /> RESTART SERVICE
+                    </button>
+                </div>
+
                 <div style={{
                     background: 'var(--bg-card)',
                     border: 'var(--glass-border)',
