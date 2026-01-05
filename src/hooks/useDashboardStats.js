@@ -4,14 +4,15 @@ import { supabase } from '../lib/supabase';
 export const useDashboardStats = () => {
     const [balances, setBalances] = useState({ BTC: { free: 0, frozen: 0 }, USDC: { free: 0, frozen: 0 } });
 
+    const [ticker, setTicker] = useState({ price: 0 });
+    const [positionsInfo, setPositionsInfo] = useState({ active: 0, max: 40 });
+    const [stats, setStats] = useState({ total_pl: 0, runtime_seconds: 0, profit_24h: 0, cycles_24h: 0 });
+
     // Derived State
     const btcPrice = parseFloat(ticker.lastPrice || ticker.price || 0);
     const btcAmount = (balances.BTC?.free || 0) + (balances.BTC?.frozen || 0);
     const usdcAmount = (balances.USDC?.free || 0) + (balances.USDC?.frozen || 0);
     const portfolioValue = (btcAmount * btcPrice) + usdcAmount;
-    const [ticker, setTicker] = useState({ price: 0 });
-    const [positionsInfo, setPositionsInfo] = useState({ active: 0, max: 40 });
-    const [stats, setStats] = useState({ total_pl: 0, runtime_seconds: 0, profit_24h: 0, cycles_24h: 0 });
     const [realtimeStatus, setRealtimeStatus] = useState('CONNECTING');
     const [systemHealth] = useState({ cpu_load: '0%', memory_usage: '0 MB', disk_space: '0 GB Free' });
     const [systemLogs, setSystemLogs] = useState([]);
