@@ -118,7 +118,7 @@ export const useSettings = () => {
                     symbol: 'BTCUSDC',
                     strategy_type: 'rolling_grid',
                     params: payload
-                });
+                }, { onConflict: 'symbol' });
 
             if (!error) {
                 setFullConfig(payload);
