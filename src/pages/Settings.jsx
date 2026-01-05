@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, RefreshCw, Shield, Key, Sliders, Download, Terminal, AlertTriangle, Info } from 'lucide-react';
+import { Save, RefreshCw, Shield, Key, Sliders, Download, Terminal, AlertTriangle, Info, Zap } from 'lucide-react';
 
 import { supabase } from '../lib/supabase';
 
