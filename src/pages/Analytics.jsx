@@ -81,7 +81,10 @@ const Analytics = () => {
 
     // Initial Fetch & Realtime Subscription
     useEffect(() => {
-        fetchData();
+        const loadData = async () => {
+            await fetchData();
+        };
+        loadData();
 
         const subscription = supabase.channel('analytics-updates')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'completed_cycles' }, () => {
