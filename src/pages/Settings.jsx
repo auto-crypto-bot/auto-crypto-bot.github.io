@@ -27,15 +27,15 @@ const Settings = () => {
 
     useEffect(() => {
         const fetchConfig = async () => {
-            const { data } = await supabase
-                .from('strategy_stats')
-                .select('value')
-                .eq('key', 'bot_configuration')
+            const { data, error } = await supabase
+                .from('strategy_config')
+                .select('params')
+                .eq('symbol', 'BTCUSDC')
                 .single();
 
-            if (data?.value) {
+            if (data?.params) {
                 try {
-                    const config = JSON.parse(data.value);
+                    const config = data.params;
                     setFullConfig(config);
 
                     // Map config keys to state
@@ -112,21 +112,24 @@ const Settings = () => {
                 upper_price_limit: parseFloat(upperPrice),
                 lower_price_limit: parseFloat(lowerPrice),
                 profit_target: fullConfig.profit_target || 50.0,
-                status: fullConfig.status || "RUNNING"
+                status: fullConfig.status || "RUNNING",
+                symbol: "BTCUSDC" // Ensure symbol is set
             };
 
             const { error } = await supabase
-                .from('strategy_stats')
-                .upsert({
-                    key: 'bot_configuration',
-                    value: JSON.stringify(payload)
-                });
+                .from('strategy_config')
+                .update({
+                    params: payload,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('symbol', 'BTCUSDC');
 
             if (!error) {
-                console.log("Strategy updated to Supabase");
+                console.log("Strategy updated to Supabase (strategy_config)");
                 setFullConfig(payload);
             } else {
                 console.error("Failed to update strategy", error);
+                alert("Update failed: " + error.message);
             }
         } catch (err) {
             console.error("Error applying strategy:", err);
