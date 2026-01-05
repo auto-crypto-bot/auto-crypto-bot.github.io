@@ -26,16 +26,16 @@ jobs:
         with:
           node-version: "20"
           cache: 'npm'
-          cache-dependency-path: UI/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: cd UI && npm ci
+        run: npm ci
 
       - name: Lint
-        run: cd UI && npm run lint
+        run: npm run lint
 
       - name: Build
-        run: cd UI && npm run build
+        run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
@@ -43,7 +43,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: UI/dist
+          path: dist
 
   deploy:
     environment:
