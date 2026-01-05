@@ -180,13 +180,30 @@ const Home = () => {
         })
         .subscribe();
 
-    if (subs.sub) supabase.removeChannel(subs.sub);
-    if (subs.configSub) supabase.removeChannel(subs.configSub);
-    supabase.removeChannel(positionsSub);
-    supabase.removeChannel(cyclesSub);
-    supabase.removeChannel(logsSub);
-};
-    }, []);
+    const cyclesSub = supabase.channel('cycles-updates')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'completed_cycles' }, () => {
+            fetchStats();
+        })
+        .subscribe();
+
+    const logsSub = supabase.channel('logs-updates')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'logs' }, (payload) => {
+            const newLog = payload.new;
+            if (newLog) {
+                const logStr = `[${new Date(newLog.timestamp).toLocaleTimeString()}] ${newLog.message}`;
+                setSystemLogs(prev => [logStr, ...prev].slice(0, 20));
+            }
+        })
+        .subscribe();
+
+    return () => {
+        if (subs.sub) supabase.removeChannel(subs.sub);
+        if (subs.configSub) supabase.removeChannel(subs.configSub);
+        supabase.removeChannel(positionsSub);
+        supabase.removeChannel(cyclesSub);
+        supabase.removeChannel(logsSub);
+    };
+}, []);
 
 // Recalc Portfolio when balances or ticker change
 useEffect(() => {
