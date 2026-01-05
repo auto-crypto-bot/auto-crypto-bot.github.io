@@ -24,13 +24,17 @@ export const useSettings = () => {
     // Fetch Config on Mount
     useEffect(() => {
         const fetchConfig = async () => {
-            const { data } = await supabase
+            console.log("Fetching Strategy Config...");
+            const { data, error } = await supabase
                 .from('strategy_config')
                 .select('params')
                 .eq('symbol', 'BTCUSDC')
                 .single();
 
+            if (error) console.error("Error fetching config:", error);
+
             if (data?.params) {
+                console.log("Received Config:", data.params);
                 try {
                     const config = data.params;
                     setFullConfig(config);
@@ -107,6 +111,7 @@ export const useSettings = () => {
                 status: fullConfig.status || "RUNNING"
             };
 
+            console.log("Applying Strategy Params:", payload);
             const { error } = await supabase
                 .from('strategy_config')
                 .upsert({

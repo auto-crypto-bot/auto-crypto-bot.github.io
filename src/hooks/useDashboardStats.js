@@ -19,32 +19,46 @@ export const useDashboardStats = () => {
 
     useEffect(() => {
         const setupSubscriptions = () => {
-            supabase.from('strategy_stats').select('key, value').in('key', ['ticker_BTCUSDC', 'balances', 'bot_configuration']).then(({ data }) => {
+            // Fetch Initial State
+            supabase.from('strategy_stats').select('key, value').in('key', ['ticker_BTCUSDC', 'balances']).then(({ data, error }) => {
+                if (error) console.error("Error fetching stats:", error);
                 if (data) {
+                    console.log("Initial Stats Data:", data);
                     let initialTicker = { price: 0, lastPrice: 0 };
                     let initialBalances = { BTC: { free: 0, frozen: 0 }, USDC: { free: 0, frozen: 0 } };
 
                     data.forEach(row => {
                         if (row.key === 'ticker_BTCUSDC') {
-                            try { initialTicker = typeof row.value === 'string' ? JSON.parse(row.value) : row.value; setTicker(initialTicker); } catch { /* ignore */ }
-                        } else if (row.key === 'balances') {
-                            try { initialBalances = typeof row.value === 'string' ? JSON.parse(row.value) : row.value; setBalances(initialBalances); } catch { /* ignore */ }
-                        } else if (row.key === 'bot_configuration') {
                             try {
-                                const config = typeof row.value === 'string' ? JSON.parse(row.value) : row.value;
-                                setPositionsInfo(prev => ({
-                                    ...prev,
-                                    max: config.max_positions || 40,
-                                    quantity: config.quantity || 0
-                                }));
-                            } catch { /* ignore */ }
+                                initialTicker = typeof row.value === 'string' ? JSON.parse(row.value) : row.value;
+                                setTicker(initialTicker);
+                            } catch (e) { console.error("Ticker Parse Error", e); }
+                        } else if (row.key === 'balances') {
+                            try {
+                                initialBalances = typeof row.value === 'string' ? JSON.parse(row.value) : row.value;
+                                setBalances(initialBalances);
+                            } catch (e) { console.error("Balance Parse Error", e); }
                         }
                     });
                 }
             });
 
+            // Fetch Max Positions from Config
+            supabase.from('strategy_config').select('params').eq('symbol', 'BTCUSDC').single().then(({ data, error }) => {
+                if (error) console.error("Error fetching config for dashboard:", error);
+                if (data?.params) {
+                    console.log("Initial Config Data:", data.params);
+                    setPositionsInfo(prev => ({
+                        ...prev,
+                        max: data.params.max_positions || 40,
+                        quantity: data.params.quantity || 0
+                    }));
+                }
+            });
+
             const sub = supabase.channel('home-realtime-debug')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'strategy_stats' }, (payload) => {
+                    console.log("RT Update [strategy_stats]:", payload);
                     if (!payload.new) return;
                     const { key, value } = payload.new;
                     if (!value) return;
@@ -56,18 +70,13 @@ export const useDashboardStats = () => {
                             setTicker(parsed);
                         } else if (key === 'balances') {
                             setBalances(parsed);
-                        } else if (key === 'bot_configuration') {
-                            setPositionsInfo(prev => ({
-                                ...prev,
-                                max: parsed.max_positions || 40,
-                                quantity: parsed.quantity || 0
-                            }));
                         }
                     } catch (e) {
                         console.error("RT Parse Error", e);
                     }
                 })
                 .subscribe((status) => {
+                    console.log("Subscription Status:", status);
                     if (status === 'SUBSCRIBED') setRealtimeStatus('Active');
                     if (status === 'CHANNEL_ERROR') setRealtimeStatus('Error');
                     if (status === 'TIMED_OUT') setRealtimeStatus('Timeout');
