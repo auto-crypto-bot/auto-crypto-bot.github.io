@@ -221,7 +221,7 @@ const CandleChart = ({ interval = '1m' }) => {
                 }
             };
 
-            ws.onerror = (e) => {
+            ws.onerror = () => {
                 // Silent error handling for frequent disconnects in dev
             };
         }, 500); // 500ms delay to bypass strict mode double-mount

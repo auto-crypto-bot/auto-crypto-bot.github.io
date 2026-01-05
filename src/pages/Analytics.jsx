@@ -11,7 +11,7 @@ const Analytics = () => {
 
     // Fetch PnL Data
     // Fetch Data Helper
-    const fetchData = async () => {
+    const fetchData = React.useCallback(async () => {
         // PnL Data
         const now = Date.now() / 1000;
         let pnlStartTs = 0;
@@ -77,7 +77,7 @@ const Analytics = () => {
             }));
             setHourlyProfitData(formatted);
         }
-    };
+    }, [pnlRange, hourlyRange]);
 
     // Initial Fetch & Realtime Subscription
     useEffect(() => {
@@ -92,7 +92,7 @@ const Analytics = () => {
         return () => {
             supabase.removeChannel(subscription);
         };
-    }, [pnlRange, hourlyRange]);
+    }, [fetchData]);
 
 
     // Derived PnL Stats

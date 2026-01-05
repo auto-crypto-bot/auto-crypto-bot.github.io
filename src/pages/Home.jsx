@@ -7,6 +7,23 @@ import SystemHealthList from '../features/dashboard/SystemHealthList';
 import Button from '../components/ui/Button'; // Assuming we want to use our new Button for actions
 import { useDashboardStats } from '../hooks/useDashboardStats';
 
+// Temporary ActionButton (should be replaced by shared Button or similar)
+const ActionButton = ({ icon, label, color }) => (
+    <Button
+        style={{
+            flex: 1,
+            background: `rgba(${color === '#00ff88' ? '0, 255, 136' : '255, 77, 77'}, 0.1)`,
+            color: color,
+            border: `1px solid rgba(${color === '#00ff88' ? '0, 255, 136' : '255, 77, 77'}, 0.2)`,
+        }}
+        icon={icon}
+        onMouseEnter={(e) => e.target.style.background = `rgba(${color === '#00ff88' ? '0, 255, 136' : '255, 77, 77'}, 0.2)`}
+        onMouseLeave={(e) => e.target.style.background = `rgba(${color === '#00ff88' ? '0, 255, 136' : '255, 77, 77'}, 0.1)`}
+    >
+        {label}
+    </Button>
+);
+
 const Home = () => {
     const {
         portfolioValue,
@@ -24,22 +41,7 @@ const Home = () => {
     const investmentDate = "Dec 14, 2025";
     const apiLatency = "24ms"; // Keep mock for now
 
-    // Temporary ActionButton (should be replaced by shared Button or similar)
-    const ActionButton = ({ icon, label, color }) => (
-        <Button
-            style={{
-                flex: 1,
-                background: `rgba(${color === '#00ff88' ? '0, 255, 136' : '255, 77, 77'}, 0.1)`,
-                color: color,
-                border: `1px solid rgba(${color === '#00ff88' ? '0, 255, 136' : '255, 77, 77'}, 0.2)`,
-            }}
-            icon={icon}
-            onMouseEnter={(e) => e.target.style.background = `rgba(${color === '#00ff88' ? '0, 255, 136' : '255, 77, 77'}, 0.2)`}
-            onMouseLeave={(e) => e.target.style.background = `rgba(${color === '#00ff88' ? '0, 255, 136' : '255, 77, 77'}, 0.1)`}
-        >
-            {label}
-        </Button>
-    );
+
 
     return (
         <div style={{ height: '100%', display: 'flex', gap: '1.5rem', overflow: 'hidden' }} className="dashboard-container">

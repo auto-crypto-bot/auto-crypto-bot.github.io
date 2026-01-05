@@ -62,7 +62,7 @@ const PnLChart = ({ data, color = '#2962FF' }) => {
                 chartRef.current = null;
             }
         };
-    }, []); // Run once on mount
+    }, [color]); // Re-initialize if color changes
 
     // 2. Update Data (When data/color changes)
     useEffect(() => {

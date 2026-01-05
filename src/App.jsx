@@ -1,7 +1,6 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Radio, BarChart2, Settings as SettingsIcon, Zap } from 'lucide-react';
-import { supabase } from './lib/supabase';
 import Home from './pages/Home';
 import Live from './pages/Live';
 import Analytics from './pages/Analytics';

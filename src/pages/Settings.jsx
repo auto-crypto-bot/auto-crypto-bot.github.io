@@ -10,6 +10,13 @@ import ServiceControlPanel from '../features/settings/ServiceControlPanel';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 
+const InfoRow = ({ label, value }) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{label}</span>
+        <span style={{ fontWeight: '500', fontSize: '0.9rem' }}>{value}</span>
+    </div>
+);
+
 const Settings = () => {
     const {
         gridLevels, setGridLevels,
@@ -25,12 +32,7 @@ const Settings = () => {
         currentPrice
     } = useSettings();
 
-    const InfoRow = ({ label, value }) => (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{label}</span>
-            <span style={{ fontWeight: '500', fontSize: '0.9rem' }}>{value}</span>
-        </div>
-    );
+
 
     return (
         <div style={{ height: '100%', display: 'flex', gap: '1.5rem', overflow: 'hidden' }} className="settings-container">
