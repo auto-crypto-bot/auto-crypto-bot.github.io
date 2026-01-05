@@ -306,7 +306,10 @@ const Settings = () => {
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                         <button
-                            onClick={() => supabase.from('bot_control').update({ command: 'START' }).eq('id', 1)}
+                            onClick={async () => {
+                                const { error } = await supabase.from('bot_control').update({ command: 'START' }).eq('id', 1);
+                                if (error) alert("Error starting bot: " + error.message);
+                            }}
                             style={{
                                 background: 'rgba(0, 255, 136, 0.15)',
                                 color: '#00ff88',
@@ -323,7 +326,10 @@ const Settings = () => {
                             START
                         </button>
                         <button
-                            onClick={() => supabase.from('bot_control').update({ command: 'STOP' }).eq('id', 1)}
+                            onClick={async () => {
+                                const { error } = await supabase.from('bot_control').update({ command: 'STOP' }).eq('id', 1);
+                                if (error) alert("Error stopping bot: " + error.message);
+                            }}
                             style={{
                                 background: 'rgba(255, 77, 77, 0.15)',
                                 color: '#ff4d4d',
@@ -341,7 +347,10 @@ const Settings = () => {
                         </button>
                     </div>
                     <button
-                        onClick={() => supabase.from('bot_control').update({ command: 'RESTART' }).eq('id', 1)}
+                        onClick={async () => {
+                            const { error } = await supabase.from('bot_control').update({ command: 'RESTART' }).eq('id', 1);
+                            if (error) alert("Error restarting bot: " + error.message);
+                        }}
                         style={{
                             width: '100%',
                             background: 'rgba(255, 215, 0, 0.15)',
