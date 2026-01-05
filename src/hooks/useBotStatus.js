@@ -34,8 +34,12 @@ export const useBotStatus = () => {
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'bot_control', filter: 'id=eq.1' }, (payload) => {
                 if (payload.new) {
                     setBotStatus(payload.new.status);
-                    if (payload.new.status === 'RUNNING') toast.success('Bot Service Started');
-                    if (payload.new.status === 'STOPPED') toast.info('Bot Service Stopped');
+
+                    // Only toast on status CHANGE
+                    if (payload.old && payload.old.status !== payload.new.status) {
+                        if (payload.new.status === 'RUNNING') toast.success('Bot Service Started');
+                        if (payload.new.status === 'STOPPED') toast.info('Bot Service Stopped');
+                    }
                 }
             })
             .subscribe((status) => {
