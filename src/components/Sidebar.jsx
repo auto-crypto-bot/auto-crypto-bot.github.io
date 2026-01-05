@@ -31,7 +31,7 @@ const Sidebar = () => {
                             `nav-link ${isActive ? 'active' : ''}`
                         }
                     >
-                        {({ isActive }) => (
+                        {() => (
                             <>
                                 <item.icon size={20} className="nav-icon" />
                                 <span className="nav-label">{item.label}</span>

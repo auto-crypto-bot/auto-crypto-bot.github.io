@@ -146,9 +146,17 @@ const Analytics = () => {
     }, [hourlyProfitData]);
 
 
+    // State for current time to keep useMemo pure and trigger updates
+    const [currentTime, setCurrentTime] = useState(Date.now());
+
+    useEffect(() => {
+        const timer = setInterval(() => setCurrentTime(Date.now()), 60000); // Update every minute
+        return () => clearInterval(timer);
+    }, []);
+
     // Derived Hourly Chart Data (Memoized for Purity)
     const hourlyChartData = useMemo(() => {
-        const now = Date.now();
+        const now = currentTime;
         const hoursMap = { '10H': 10, '24H': 24, '48H': 48, '4D': 96 };
         const hoursLookback = hoursMap[hourlyRange] || 24;
         const startTime = now - (hoursLookback * 3600 * 1000);
@@ -172,7 +180,7 @@ const Analytics = () => {
                 heightPercent: (Math.max(0, item.value) / hourlyStats.maxRaw) * 100
             };
         });
-    }, [hourlyProfitData, hourlyRange, hourlyStats]);
+    }, [hourlyProfitData, hourlyRange, hourlyStats, currentTime]);
 
     return (
         <div className="analytics-container" style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '1.5rem', overflow: 'hidden', paddingRight: '1rem' }}>

@@ -1,7 +1,7 @@
 import React from 'react';
 import Card from '../../components/ui/Card';
 
-const AssetRow = ({ symbol, name, amount, value, percent, color }) => (
+const AssetRow = ({ symbol, name, amount, value, color }) => (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <div style={{ width: '12px', height: '12px', borderRadius: '4px', background: color }}></div>

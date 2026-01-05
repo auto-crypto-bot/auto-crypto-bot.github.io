@@ -230,7 +230,7 @@ const CandleChart = ({ interval = '1m' }) => {
             clearTimeout(wsTimeout);
             if (activeLinesMap) {
                 activeLinesMap.forEach(line => {
-                    try { candlestickSeries.removePriceLine(line); } catch (e) { }
+                    try { candlestickSeries.removePriceLine(line); } catch { /* ignore */ }
                 });
             }
             if (ws) {

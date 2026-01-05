@@ -49,7 +49,7 @@ const PnLChart = ({ data, color = '#2962FF' }) => {
                 chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
                 try {
                     chartRef.current.timeScale().fitContent();
-                } catch (e) { /* ignore disposal errors during resize */ }
+                } catch { /* ignore disposal errors during resize */ }
             }
         };
 

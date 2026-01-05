@@ -8,7 +8,7 @@ export const useDashboardStats = () => {
     const [positionsInfo, setPositionsInfo] = useState({ active: 0, max: 40 });
     const [stats, setStats] = useState({ total_pl: 0, runtime_seconds: 0, profit_24h: 0, cycles_24h: 0 });
     const [realtimeStatus, setRealtimeStatus] = useState('CONNECTING');
-    const [systemHealth, setSystemHealth] = useState({ cpu_load: '0%', memory_usage: '0 MB', disk_space: '0 GB Free' });
+    const [systemHealth] = useState({ cpu_load: '0%', memory_usage: '0 MB', disk_space: '0 GB Free' });
     const [systemLogs, setSystemLogs] = useState([]);
 
     useEffect(() => {
@@ -30,9 +30,9 @@ export const useDashboardStats = () => {
 
                     data.forEach(row => {
                         if (row.key === 'ticker_BTCUSDC') {
-                            try { initialTicker = typeof row.value === 'string' ? JSON.parse(row.value) : row.value; setTicker(initialTicker); } catch (e) { }
+                            try { initialTicker = typeof row.value === 'string' ? JSON.parse(row.value) : row.value; setTicker(initialTicker); } catch { /* ignore */ }
                         } else if (row.key === 'balances') {
-                            try { initialBalances = typeof row.value === 'string' ? JSON.parse(row.value) : row.value; setBalances(initialBalances); } catch (e) { }
+                            try { initialBalances = typeof row.value === 'string' ? JSON.parse(row.value) : row.value; setBalances(initialBalances); } catch { /* ignore */ }
                         } else if (row.key === 'bot_configuration') {
                             try {
                                 const config = typeof row.value === 'string' ? JSON.parse(row.value) : row.value;
@@ -41,7 +41,7 @@ export const useDashboardStats = () => {
                                     max: config.max_positions || 40,
                                     quantity: config.quantity || 0
                                 }));
-                            } catch (e) { }
+                            } catch { /* ignore */ }
                         }
                     });
                     updatePortfolio(initialBalances, initialTicker);
