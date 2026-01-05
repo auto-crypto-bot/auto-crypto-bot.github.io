@@ -227,7 +227,7 @@ const Home = () => {
                     <SummaryCard
                         label="Positions"
                         value={`${positionsInfo.active} / ${positionsInfo.max}`}
-                        subValue="Active / Max"
+                        subValue="Sell Orders / Total Grid Level"
                         icon={<Layers size={24} color="#ffffff" />}
                     />
                     <SummaryCard
