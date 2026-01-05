@@ -188,6 +188,15 @@ const CandleChart = ({ interval = '1m' }) => {
 
         fetchData();
 
+        // --- Real-time: Supabase (Orders) ---
+        const ordersSub = supabase.channel('chart-orders')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+                // Refresh markers and lines on any order change
+                updateMarkers();
+                updatePriceLines();
+            })
+            .subscribe();
+
         // --- Real-time: Binance WebSocket (Candles) ---
         let ws = null;
         let wsTimeout = setTimeout(() => {
