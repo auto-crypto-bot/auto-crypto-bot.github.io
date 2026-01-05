@@ -8,29 +8,14 @@ import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
+import { AppErrorBoundary } from './components/common/ErrorBoundary';
+import { ToastProvider } from './components/common/ToastProvider';
+import { useBotStatus } from './hooks/useBotStatus'; // Hook usage
 
 // Main Content
 const AppContent = () => {
   const location = useLocation();
-
-  // Bot Status State
-  const [botStatus, setBotStatus] = React.useState('STOPPED');
-
-  React.useEffect(() => {
-    // 1. Initial Fetch
-    supabase.from('bot_control').select('status').eq('id', 1).single().then(({ data }) => {
-      if (data) setBotStatus(data.status);
-    });
-
-    // 2. Realtime Subscription
-    const statusSub = supabase.channel('bot-status-sidebar')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'bot_control', filter: 'id=eq.1' }, (payload) => {
-        if (payload.new) setBotStatus(payload.new.status);
-      })
-      .subscribe();
-
-    return () => supabase.removeChannel(statusSub);
-  }, []);
+  const { botStatus } = useBotStatus(); // Use the hook
 
   // If on login page, don't show the sidebar layout
   if (location.pathname === '/login') {
@@ -51,9 +36,9 @@ const AppContent = () => {
         </div>
 
         {/* Status Badge */}
-        <div className={`sidebar-status ${botStatus.toLowerCase()}`}>
-          <span className={`status-text ${botStatus.toLowerCase()}`}>{botStatus}</span>
-          <div className={`status-dot ${botStatus.toLowerCase()}`}></div>
+        <div className={`sidebar-status ${botStatus?.toLowerCase() || 'stopped'}`}>
+          <span className={`status-text ${botStatus?.toLowerCase() || 'stopped'}`}>{botStatus || 'UNKNOWN'}</span>
+          <div className={`status-dot ${botStatus?.toLowerCase() || 'stopped'}`}></div>
         </div>
 
         {/* Navigation */}
@@ -66,16 +51,18 @@ const AppContent = () => {
       </nav>
 
       <main className="app-main">
-        <Routes>
-          <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<Home />} />
-            <Route path="/live" element={<Live />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/settings" element={<Settings />} />
-          </Route>
-          {/* Fallback to login if unknown route? Or Home which redirects */}
-          <Route path="*" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-        </Routes>
+        <AppErrorBoundary>
+          <Routes>
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/live" element={<Live />} />
+              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
+            {/* Fallback to login if unknown route? Or Home which redirects */}
+            <Route path="*" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+          </Routes>
+        </AppErrorBoundary>
       </main>
     </div>
   );
@@ -91,7 +78,8 @@ const NavLink = ({ to, icon, label, active }) => (
 
 const App = () => {
   return (
-    <Router>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <ToastProvider />
       <AppContent />
     </Router>
   );

@@ -7,18 +7,13 @@ export default defineConfig({
   base: './',
   server: {
     host: '0.0.0.0',
-    port: 8080,
+    port: 5173,
     proxy: {
-      '/api/v3': {
-        target: 'https://api.mexc.com',
-        changeOrigin: true,
-        secure: false,
-      },
       '/api': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
         secure: false,
       },
-    },
+    }
   },
 })

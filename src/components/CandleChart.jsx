@@ -189,33 +189,36 @@ const CandleChart = ({ interval = '1m' }) => {
         fetchData();
 
         // --- Real-time: Binance WebSocket (Candles) ---
-        const wsInterval = interval === '60m' ? '1h' : interval;
-        const ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdc@kline_${wsInterval}`);
-        ws.onmessage = (event) => {
-            const message = JSON.parse(event.data);
-            if (message.k) {
-                const k = message.k;
-                candlestickSeries.update({
-                    time: k.t / 1000,
-                    open: parseFloat(k.o),
-                    high: parseFloat(k.h),
-                    low: parseFloat(k.l),
-                    close: parseFloat(k.c),
-                });
-            }
-        };
+        let ws = null;
+        let wsTimeout = setTimeout(() => {
+            const wsInterval = interval === '60m' ? '1h' : interval;
+            ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdc@kline_${wsInterval}`);
 
-        // --- Real-time: Supabase (Orders) ---
-        // --- Real-time: Supabase (Orders) ---
-        const ordersSub = supabase.channel('chart-orders')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-                // Refresh markers and lines on any order change
-                updateMarkers();
-                updatePriceLines();
-            })
-            .subscribe();
+            ws.onopen = () => {
+                // Connection established
+            };
+
+            ws.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                if (message.k) {
+                    const k = message.k;
+                    candlestickSeries.update({
+                        time: k.t / 1000,
+                        open: parseFloat(k.o),
+                        high: parseFloat(k.h),
+                        low: parseFloat(k.l),
+                        close: parseFloat(k.c),
+                    });
+                }
+            };
+
+            ws.onerror = (e) => {
+                // Silent error handling for frequent disconnects in dev
+            };
+        }, 500); // 500ms delay to bypass strict mode double-mount
 
         return () => {
+            clearTimeout(wsTimeout);
             if (activeLinesMap) {
                 activeLinesMap.forEach(line => {
                     try { candlestickSeries.removePriceLine(line); } catch (e) { }
