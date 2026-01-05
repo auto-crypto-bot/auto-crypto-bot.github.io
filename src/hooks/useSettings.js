@@ -25,14 +25,14 @@ export const useSettings = () => {
     useEffect(() => {
         const fetchConfig = async () => {
             const { data } = await supabase
-                .from('strategy_stats')
-                .select('value')
-                .eq('key', 'bot_configuration')
+                .from('strategy_config')
+                .select('params')
+                .eq('symbol', 'BTCUSDC')
                 .single();
 
-            if (data?.value) {
+            if (data?.params) {
                 try {
-                    const config = JSON.parse(data.value);
+                    const config = data.params;
                     setFullConfig(config);
 
                     if (config.max_positions !== undefined) setGridLevels(config.max_positions);
@@ -108,10 +108,11 @@ export const useSettings = () => {
             };
 
             const { error } = await supabase
-                .from('strategy_stats')
+                .from('strategy_config')
                 .upsert({
-                    key: 'bot_configuration',
-                    value: JSON.stringify(payload)
+                    symbol: 'BTCUSDC',
+                    strategy_type: 'rolling_grid',
+                    params: payload
                 });
 
             if (!error) {
