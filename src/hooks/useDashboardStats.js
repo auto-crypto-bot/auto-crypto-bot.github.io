@@ -10,9 +10,13 @@ export const useDashboardStats = () => {
 
     // Derived State
     const btcPrice = parseFloat(ticker.lastPrice || ticker.price || 0);
-    const btcAmount = (balances.BTC?.free || 0) + (balances.BTC?.frozen || 0);
-    const usdcAmount = (balances.USDC?.free || 0) + (balances.USDC?.frozen || 0);
+    const btcAmount = (balances.BTC?.free || 0) + (balances.BTC?.locked || 0) + (balances.BTC?.frozen || 0);
+    const usdcAmount = (balances.USDC?.free || 0) + (balances.USDC?.locked || 0) + (balances.USDC?.frozen || 0);
     const portfolioValue = (btcAmount * btcPrice) + usdcAmount;
+
+    // Debug: Check if calculation matches expectation
+    // console.log("Portfolio Calc:", { btcAmount, btcPrice, usdcAmount, total: portfolioValue });
+
     const [realtimeStatus, setRealtimeStatus] = useState('CONNECTING');
     const [systemHealth] = useState({ cpu_load: '0%', memory_usage: '0 MB', disk_space: '0 GB Free' });
     const [systemLogs, setSystemLogs] = useState([]);
