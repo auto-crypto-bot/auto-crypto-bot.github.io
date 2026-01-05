@@ -27,15 +27,15 @@ const Settings = () => {
 
     useEffect(() => {
         const fetchConfig = async () => {
-            const { data, error } = await supabase
-                .from('strategy_config')
-                .select('params')
-                .eq('symbol', 'BTCUSDC')
+            const { data } = await supabase
+                .from('strategy_stats')
+                .select('value')
+                .eq('key', 'bot_configuration')
                 .single();
 
-            if (data?.params) {
+            if (data?.value) {
                 try {
-                    const config = data.params;
+                    const config = JSON.parse(data.value);
                     setFullConfig(config);
 
                     // Map config keys to state
@@ -112,24 +112,21 @@ const Settings = () => {
                 upper_price_limit: parseFloat(upperPrice),
                 lower_price_limit: parseFloat(lowerPrice),
                 profit_target: fullConfig.profit_target || 50.0,
-                status: fullConfig.status || "RUNNING",
-                symbol: "BTCUSDC" // Ensure symbol is set
+                status: fullConfig.status || "RUNNING"
             };
 
             const { error } = await supabase
-                .from('strategy_config')
-                .update({
-                    params: payload,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('symbol', 'BTCUSDC');
+                .from('strategy_stats')
+                .upsert({
+                    key: 'bot_configuration',
+                    value: JSON.stringify(payload)
+                });
 
             if (!error) {
-                console.log("Strategy updated to Supabase (strategy_config)");
+                console.log("Strategy updated to Supabase");
                 setFullConfig(payload);
             } else {
                 console.error("Failed to update strategy", error);
-                alert("Update failed: " + error.message);
             }
         } catch (err) {
             console.error("Error applying strategy:", err);
@@ -309,10 +306,7 @@ const Settings = () => {
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                         <button
-                            onClick={async () => {
-                                const { error } = await supabase.from('bot_control').update({ command: 'START' }).eq('id', 1);
-                                if (error) alert("Error starting bot: " + error.message);
-                            }}
+                            onClick={() => supabase.from('bot_control').update({ command: 'START' }).eq('id', 1)}
                             style={{
                                 background: 'rgba(0, 255, 136, 0.15)',
                                 color: '#00ff88',
@@ -329,10 +323,7 @@ const Settings = () => {
                             START
                         </button>
                         <button
-                            onClick={async () => {
-                                const { error } = await supabase.from('bot_control').update({ command: 'STOP' }).eq('id', 1);
-                                if (error) alert("Error stopping bot: " + error.message);
-                            }}
+                            onClick={() => supabase.from('bot_control').update({ command: 'STOP' }).eq('id', 1)}
                             style={{
                                 background: 'rgba(255, 77, 77, 0.15)',
                                 color: '#ff4d4d',
@@ -350,10 +341,7 @@ const Settings = () => {
                         </button>
                     </div>
                     <button
-                        onClick={async () => {
-                            const { error } = await supabase.from('bot_control').update({ command: 'RESTART' }).eq('id', 1);
-                            if (error) alert("Error restarting bot: " + error.message);
-                        }}
+                        onClick={() => supabase.from('bot_control').update({ command: 'RESTART' }).eq('id', 1)}
                         style={{
                             width: '100%',
                             background: 'rgba(255, 215, 0, 0.15)',
