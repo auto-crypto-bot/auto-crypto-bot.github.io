@@ -180,13 +180,6 @@ const Home = () => {
         })
         .subscribe();
 
-    const cyclesSub = supabase.channel('cycles-updates')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'completed_cycles' }, () => {
-            fetchStats();
-        })
-        .subscribe();
-
-    const logsSub = supabase.channel('logs-updates')
     if (subs.sub) supabase.removeChannel(subs.sub);
     if (subs.configSub) supabase.removeChannel(subs.configSub);
     supabase.removeChannel(positionsSub);
