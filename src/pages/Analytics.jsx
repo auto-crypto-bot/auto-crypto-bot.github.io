@@ -147,7 +147,7 @@ const Analytics = () => {
 
 
     // State for current time to keep useMemo pure and trigger updates
-    const [currentTime, setCurrentTime] = useState(Date.now());
+    const [currentTime, setCurrentTime] = useState(() => Date.now());
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(Date.now()), 60000); // Update every minute

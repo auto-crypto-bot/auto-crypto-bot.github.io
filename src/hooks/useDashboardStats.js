@@ -2,8 +2,13 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
 export const useDashboardStats = () => {
-    const [portfolioValue, setPortfolioValue] = useState(0);
     const [balances, setBalances] = useState({ BTC: { free: 0, frozen: 0 }, USDC: { free: 0, frozen: 0 } });
+
+    // Derived State
+    const btcPrice = parseFloat(ticker.lastPrice || ticker.price || 0);
+    const btcAmount = (balances.BTC?.free || 0) + (balances.BTC?.frozen || 0);
+    const usdcAmount = (balances.USDC?.free || 0) + (balances.USDC?.frozen || 0);
+    const portfolioValue = (btcAmount * btcPrice) + usdcAmount;
     const [ticker, setTicker] = useState({ price: 0 });
     const [positionsInfo, setPositionsInfo] = useState({ active: 0, max: 40 });
     const [stats, setStats] = useState({ total_pl: 0, runtime_seconds: 0, profit_24h: 0, cycles_24h: 0 });
@@ -12,16 +17,6 @@ export const useDashboardStats = () => {
     const [systemLogs, setSystemLogs] = useState([]);
 
     useEffect(() => {
-        // Helper to update portfolio value
-        const updatePortfolio = (currentBalances, currentTicker) => {
-            if (currentBalances && currentTicker.lastPrice) {
-                const btcPrice = parseFloat(currentTicker.lastPrice || 0);
-                const btcAmount = (currentBalances.BTC?.free || 0) + (currentBalances.BTC?.frozen || 0);
-                const usdcAmount = (currentBalances.USDC?.free || 0) + (currentBalances.USDC?.frozen || 0);
-                setPortfolioValue((btcAmount * btcPrice) + usdcAmount);
-            }
-        };
-
         const setupSubscriptions = () => {
             supabase.from('strategy_stats').select('key, value').in('key', ['ticker_BTCUSDC', 'balances', 'bot_configuration']).then(({ data }) => {
                 if (data) {
@@ -44,7 +39,6 @@ export const useDashboardStats = () => {
                             } catch { /* ignore */ }
                         }
                     });
-                    updatePortfolio(initialBalances, initialTicker);
                 }
             });
 
@@ -149,15 +143,7 @@ export const useDashboardStats = () => {
         };
     }, []);
 
-    // Recalc Portfolio when balances or ticker change
-    useEffect(() => {
-        if (balances && ticker) {
-            const btcPrice = parseFloat(ticker.lastPrice || ticker.price || 0);
-            const btcAmount = (balances.BTC?.free || 0) + (balances.BTC?.frozen || 0);
-            const usdcAmount = (balances.USDC?.free || 0) + (balances.USDC?.frozen || 0);
-            setPortfolioValue((btcAmount * btcPrice) + usdcAmount);
-        }
-    }, [balances, ticker]);
+
 
     return {
         portfolioValue,

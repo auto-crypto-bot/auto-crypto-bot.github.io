@@ -24,7 +24,7 @@ export const useSettings = () => {
     // Fetch Config on Mount
     useEffect(() => {
         const fetchConfig = async () => {
-            const { data, error } = await supabase
+            const { data } = await supabase
                 .from('strategy_stats')
                 .select('value')
                 .eq('key', 'bot_configuration')
@@ -62,7 +62,7 @@ export const useSettings = () => {
                 try {
                     const t = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
                     if (t.lastPrice) setCurrentPrice(parseFloat(t.lastPrice));
-                } catch { }
+                } catch { /* ignore */ }
             }
         };
         fetchPrice();
@@ -75,7 +75,7 @@ export const useSettings = () => {
                         const val = payload.new.value;
                         const t = typeof val === 'string' ? JSON.parse(val) : val;
                         if (t.lastPrice) setCurrentPrice(parseFloat(t.lastPrice));
-                    } catch { }
+                    } catch { /* ignore parse error */ }
                 }
             })
             .subscribe();
