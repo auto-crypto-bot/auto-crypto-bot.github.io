@@ -51,7 +51,7 @@ const AppContent = () => {
         </div>
 
         {/* Status Badge */}
-        <div className={`sidebar-status`}>
+        <div className={`sidebar-status ${botStatus.toLowerCase()}`}>
           <span className={`status-text ${botStatus.toLowerCase()}`}>{botStatus}</span>
           <div className={`status-dot ${botStatus.toLowerCase()}`}></div>
         </div>

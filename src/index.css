@@ -249,6 +249,31 @@ body {
   color: #ffaa00;
 }
 
+/* Status Box Container Styling */
+.sidebar-status {
+  transition: all 0.3s ease;
+}
+
+.sidebar-status.running {
+  background: linear-gradient(90deg, rgba(0, 255, 136, 0.03) 0%, rgba(0, 255, 136, 0.08) 100%);
+  border-color: rgba(0, 255, 136, 0.15);
+}
+
+.sidebar-status.stopped {
+  background: linear-gradient(90deg, rgba(255, 77, 77, 0.03) 0%, rgba(255, 77, 77, 0.08) 100%);
+  border-color: rgba(255, 77, 77, 0.2);
+}
+
+.sidebar-status.starting {
+  background: linear-gradient(90deg, rgba(255, 215, 0, 0.03) 0%, rgba(255, 215, 0, 0.08) 100%);
+  border-color: rgba(255, 215, 0, 0.2);
+}
+
+.sidebar-status.crashed {
+  background: linear-gradient(90deg, rgba(255, 170, 0, 0.03) 0%, rgba(255, 170, 0, 0.08) 100%);
+  border-color: rgba(255, 170, 0, 0.2);
+}
+
 .sidebar-nav {
   display: flex;
   flex-direction: column;
