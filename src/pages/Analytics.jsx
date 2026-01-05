@@ -146,6 +146,34 @@ const Analytics = () => {
     }, [hourlyProfitData]);
 
 
+    // Derived Hourly Chart Data (Memoized for Purity)
+    const hourlyChartData = useMemo(() => {
+        const now = Date.now();
+        const hoursMap = { '10H': 10, '24H': 24, '48H': 48, '4D': 96 };
+        const hoursLookback = hoursMap[hourlyRange] || 24;
+        const startTime = now - (hoursLookback * 3600 * 1000);
+
+        return [...hourlyProfitData].reverse().map((item, i) => {
+            const barTime = new Date(startTime + (item.hour * 3600 * 1000));
+            const timeLabel = barTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const fullDate = barTime.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            const isCurrentHour = i === 0;
+            const isMax = item.hour === hourlyStats.maxHour;
+            const showLabel = (hourlyRange === '10H') || (i % 6 === 0) || isCurrentHour;
+
+            return {
+                ...item,
+                barTime,
+                timeLabel,
+                fullDate,
+                isCurrentHour,
+                isMax,
+                showLabel,
+                heightPercent: (Math.max(0, item.value) / hourlyStats.maxRaw) * 100
+            };
+        });
+    }, [hourlyProfitData, hourlyRange, hourlyStats]);
+
     return (
         <div className="analytics-container" style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '1.5rem', overflow: 'hidden', paddingRight: '1rem' }}>
 
@@ -284,74 +312,53 @@ const Analytics = () => {
                             msOverflowStyle: 'none'
                         }}>
                         <style>{`.no-scrollbar::-webkit-scrollbar { display: none; }`}</style>
-                        {[...hourlyProfitData].reverse().map((item, i) => {
-                            // Time Calculation
-                            // item.hour is index 0..N
-                            // We need to know total window size to map back to time
-                            const hoursMap = { '10H': 10, '24H': 24, '48H': 48, '4D': 96 };
-                            const hoursLookback = hoursMap[hourlyRange] || 24;
-                            const now = Date.now();
-                            // Approximate start time: 
-                            const startTime = now - (hoursLookback * 3600 * 1000);
-                            // item.hour comes from backend as 0..N index
-                            // But backend "hour" field is the index.
-                            const barTime = new Date(startTime + (item.hour * 3600 * 1000));
-                            const timeLabel = barTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                            const fullDate = barTime.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                            // Since reversed, index 0 is Current Hour (Newest)
-                            const isCurrentHour = i === 0;
-                            const isMax = item.hour === hourlyStats.maxHour;
-
-                            // Show label every N bars to avoid clutter
-                            const showLabel = (hourlyRange === '10H') || (i % 6 === 0) || isCurrentHour;
-
-                            return (
-                                <div key={i} style={{
-                                    flex: 1,
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    height: '100%',
-                                    justifyContent: 'flex-end',
-                                    minWidth: hourlyRange === '4D' ? '6px' : '20px',
-                                    position: 'relative'
-                                }}>
+                        {hourlyChartData.map((item, i) => (
+                            <div key={i} style={{
+                                flex: 1,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                height: '100%',
+                                justifyContent: 'flex-end',
+                                minWidth: hourlyRange === '4D' ? '6px' : '20px',
+                                position: 'relative'
+                            }}>
+                                <div style={{
+                                    width: '100%',
+                                    height: `${item.heightPercent}%`,
+                                    maxHeight: '100%',
+                                    background: item.isCurrentHour
+                                        ? 'linear-gradient(180deg, #00ff88 0%, rgba(0,255,136,0.2) 100%)'
+                                        : (item.isMax ? 'rgba(0, 255, 136, 0.8)' : 'rgba(0, 216, 255, 0.2)'),
+                                    borderRadius: '2px',
+                                    // Highlight current hour with border/glow
+                                    border: item.isCurrentHour ? '1px solid #fff' : (item.isMax ? 'none' : 'none'),
+                                    borderTop: (!item.isCurrentHour && !item.isMax) ? '2px solid #00d8ff' : 'none',
+                                    boxShadow: item.isCurrentHour ? '0 0 10px rgba(0,255,136,0.3)' : 'none',
+                                    transition: 'height 0.3s ease',
+                                    position: 'relative',
+                                    cursor: 'help'
+                                }}
+                                    title={`${item.fullDate}\nProfit: $${item.value?.toFixed(3)}\nCycles: ${item.cycles || 0}${item.isCurrentHour ? ' (Current)' : ''}`}
+                                />
+                                {/* X-Axis Labels */}
+                                {item.showLabel && (
                                     <div style={{
-                                        width: '100%',
-                                        height: `${(Math.max(0, item.value) / hourlyStats.maxRaw) * 100}%`,
-                                        maxHeight: '100%',
-                                        background: isCurrentHour
-                                            ? 'linear-gradient(180deg, #00ff88 0%, rgba(0,255,136,0.2) 100%)'
-                                            : (isMax ? 'rgba(0, 255, 136, 0.8)' : 'rgba(0, 216, 255, 0.2)'),
-                                        borderRadius: '2px',
-                                        // Highlight current hour with border/glow
-                                        border: isCurrentHour ? '1px solid #fff' : (isMax ? 'none' : 'none'),
-                                        borderTop: (!isCurrentHour && !isMax) ? '2px solid #00d8ff' : 'none',
-                                        boxShadow: isCurrentHour ? '0 0 10px rgba(0,255,136,0.3)' : 'none',
-                                        transition: 'height 0.3s ease',
-                                        position: 'relative',
-                                        cursor: 'help'
-                                    }}
-                                        title={`${fullDate}\nProfit: $${item.value?.toFixed(3)}\nCycles: ${item.cycles || 0}${isCurrentHour ? ' (Current)' : ''}`}
-                                    />
-                                    {/* X-Axis Labels */}
-                                    {showLabel && (
-                                        <div style={{
-                                            position: 'absolute',
-                                            bottom: '-25px',
-                                            fontSize: '0.6rem',
-                                            color: isCurrentHour ? '#00ff88' : 'var(--text-secondary)',
-                                            whiteSpace: 'nowrap',
-                                            transform: hourlyRange === '4D' || hourlyRange === '48H' ? 'rotate(-45deg)' : 'none',
-                                            transformOrigin: 'top left',
-                                            left: '50%'
-                                        }}>
-                                            {isCurrentHour ? 'NOW' : timeLabel}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
+                                        position: 'absolute',
+                                        bottom: '-25px',
+                                        fontSize: '0.6rem',
+                                        color: item.isCurrentHour ? '#00ff88' : 'var(--text-secondary)',
+                                        whiteSpace: 'nowrap',
+                                        transform: hourlyRange === '4D' || hourlyRange === '48H' ? 'rotate(-45deg)' : 'none',
+                                        transformOrigin: 'top left',
+                                        left: '50%'
+                                    }}>
+                                        {item.isCurrentHour ? 'NOW' : item.timeLabel}
+                                    </div>
+                                )}
+                            </div>
+                        )
+                        )}
                     </div>
                 </div>
 
