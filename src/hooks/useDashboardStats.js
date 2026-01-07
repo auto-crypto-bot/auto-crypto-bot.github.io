@@ -45,10 +45,9 @@ export const useDashboardStats = () => {
                 try {
                     const d = JSON.parse(e.data);
                     setTicker({ price: d.c, lastPrice: d.c });
-                } catch (err) { }
+                } catch { /* ignore parse error */ }
             };
 
-            // Fetch Max Positions from Config
             // Fetch Max Positions from Config
             supabase.from('bot_config').select('config_json').eq('symbol', 'BTCUSDC').single().then(({ data, error }) => {
                 if (error) console.error("Error fetching config for dashboard:", error);
