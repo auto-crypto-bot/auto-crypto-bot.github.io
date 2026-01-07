@@ -26,7 +26,7 @@ export const useSettings = () => {
         const fetchConfig = async () => {
             console.log("Fetching Strategy Config...");
             const { data, error } = await supabase
-            const { data, error } = await supabase
+
                 .from('bot_config')
                 .select('config_json')
                 .eq('symbol', 'BTCUSDC')

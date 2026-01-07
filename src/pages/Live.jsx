@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import CandleChart from '../components/CandleChart';
 import LiveActivity from '../components/LiveActivity';
 import { Settings } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+
 
 const Live = () => {
     const [timeframe, setTimeframe] = useState('1m');
