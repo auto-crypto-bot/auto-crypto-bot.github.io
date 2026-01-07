@@ -26,17 +26,18 @@ export const useSettings = () => {
         const fetchConfig = async () => {
             console.log("Fetching Strategy Config...");
             const { data, error } = await supabase
-                .from('strategy_config')
-                .select('params')
+            const { data, error } = await supabase
+                .from('bot_config')
+                .select('config_json')
                 .eq('symbol', 'BTCUSDC')
                 .single();
 
             if (error) console.error("Error fetching config:", error);
 
-            if (data?.params) {
-                console.log("Received Config:", data.params);
+            if (data?.config_json) {
+                console.log("Received Config:", data.config_json);
                 try {
-                    const config = data.params;
+                    const config = data.config_json;
                     setFullConfig(config);
 
                     if (config.max_positions !== undefined) setGridLevels(config.max_positions);
@@ -54,37 +55,18 @@ export const useSettings = () => {
     }, []);
 
     // Live Price Subscription
+    // Live Price Subscription (Binance WS)
     useEffect(() => {
-        const fetchPrice = async () => {
-            const { data } = await supabase
-                .from('strategy_stats')
-                .select('value')
-                .eq('key', 'ticker_BTCUSDC')
-                .single();
+        const ws = new WebSocket('wss://stream.binance.com:9443/ws/btcusdc@ticker');
 
-            if (data?.value) {
-                try {
-                    const t = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
-                    if (t.lastPrice) setCurrentPrice(parseFloat(t.lastPrice));
-                } catch { /* ignore */ }
-            }
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.c) setCurrentPrice(parseFloat(data.c));
+            } catch (e) { console.error(e); }
         };
-        fetchPrice();
 
-        const subscription = supabase
-            .channel('settings-price')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'strategy_stats', filter: 'key=eq.ticker_BTCUSDC' }, (payload) => {
-                if (payload.new?.value) {
-                    try {
-                        const val = payload.new.value;
-                        const t = typeof val === 'string' ? JSON.parse(val) : val;
-                        if (t.lastPrice) setCurrentPrice(parseFloat(t.lastPrice));
-                    } catch { /* ignore parse error */ }
-                }
-            })
-            .subscribe();
-
-        return () => supabase.removeChannel(subscription);
+        return () => ws.close();
     }, []);
 
     // Actions
@@ -113,11 +95,14 @@ export const useSettings = () => {
 
             console.log("Applying Strategy Params:", payload);
             const { error } = await supabase
-                .from('strategy_config')
+            console.log("Applying Strategy Params:", payload);
+            const { error } = await supabase
+                .from('bot_config')
                 .upsert({
                     symbol: 'BTCUSDC',
                     strategy_type: 'rolling_grid',
-                    params: payload
+                    config_json: payload,
+                    updated_at: new Date().toISOString()
                 }, { onConflict: 'symbol' });
 
             if (!error) {

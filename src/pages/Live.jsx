@@ -9,44 +9,28 @@ const Live = () => {
     const [ticker, setTicker] = useState(null);
     const symbol = "BTCUSDC";
 
-    // Real-time Ticker from Supabase
+    // Real-time Ticker from Binance WS (Direct)
     useEffect(() => {
-        const fetchInitialTicker = async () => {
-            const { data } = await supabase
-                .from('strategy_stats')
-                .select('value')
-                .eq('key', `ticker_${symbol}`)
-                .single();
-            if (data?.value) {
-                try {
-                    setTicker(JSON.parse(data.value));
-                } catch (e) {
-                    console.error("Ticker Parse Error", e);
-                }
+        const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@ticker`);
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                // Map Binance format to our UI format
+                setTicker({
+                    lastPrice: data.c,
+                    priceChangePercent: data.P,
+                    highPrice: data.h,
+                    lowPrice: data.l,
+                    volume: data.v
+                });
+            } catch (e) {
+                console.error("WS Parse Error", e);
             }
         };
 
-        fetchInitialTicker();
-
-        const subscription = supabase
-            .channel('ticker-updates')
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'strategy_stats',
-                filter: `key=eq.ticker_${symbol}`
-            }, (payload) => {
-                if (payload.new && payload.new.value) {
-                    try {
-                        const val = payload.new.value;
-                        setTicker(typeof val === 'string' ? JSON.parse(val) : val);
-                    } catch (e) { console.error(e); }
-                }
-            })
-            .subscribe();
-
         return () => {
-            supabase.removeChannel(subscription);
+            if (ws) ws.close();
         };
     }, [symbol]);
 

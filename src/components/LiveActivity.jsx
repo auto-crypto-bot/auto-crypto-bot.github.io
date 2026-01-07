@@ -37,37 +37,66 @@ const LiveActivity = () => {
         fetchActivity();
 
         const subscription = supabase
-            .channel('activity-feed-orders')
-            .on('postgres_changes', {
-                event: 'UPDATE', // Listen for updates to FILLED
-                schema: 'public',
-                table: 'orders',
-                filter: 'status=eq.FILLED'
-            }, (payload) => {
-                handleNewLog(payload.new);
+            .channel('activity-feed-v2')
+            // Listen for NEW Buys and Buy Fills
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'active_positions' }, (payload) => {
+                const newRec = payload.new;
+                if (!newRec) return;
+
+                // Check if it's a Buy Fill (Internal status in metadata or just mapped)
+                // We use metadata.internal_status or check if status changed to OPEN/FILLED?
+                // active_positions: status starts OPEN.
+                // We can just log "Buy Order Placed" on INSERT? or "Executed"?
+                // Let's log INSERT as "Buy Placed" and if we can detect fill...
+                // storage.py updates `active_positions` with meta_data={'internal_status': 'FILLED_BUY'}
+
+                if (payload.eventType === 'INSERT') {
+                    handleNewLog({
+                        id: newRec.id,
+                        side: 'BUY',
+                        price: newRec.entry_price,
+                        quantity: newRec.entry_quantity,
+                        created_at: newRec.created_at,
+                        message_override: 'Buy Order Placed'
+                    });
+                } else if (payload.eventType === 'UPDATE') {
+                    if (newRec.meta_data && newRec.meta_data.internal_status === 'FILLED_BUY' && payload.old && payload.old.meta_data?.internal_status !== 'FILLED_BUY') {
+                        handleNewLog({
+                            id: newRec.id,
+                            side: 'BUY',
+                            price: newRec.entry_price,
+                            quantity: newRec.entry_quantity,
+                            created_at: new Date().toISOString(),
+                            message_override: 'Buy Order Filled'
+                        });
+                    }
+                }
             })
-            .on('postgres_changes', {
-                event: 'INSERT', // Listen for new FILLED orders (unlikely but possible)
-                schema: 'public',
-                table: 'orders',
-                filter: 'status=eq.FILLED'
-            }, (payload) => {
-                handleNewLog(payload.new);
+            // Listen for Sells (Cycle Complete)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'completed_cycles' }, (payload) => {
+                const rec = payload.new;
+                handleNewLog({
+                    id: rec.id,
+                    side: 'SELL',
+                    price: rec.exit_price,
+                    quantity: rec.quantity,
+                    created_at: rec.closed_at,
+                    message_override: `Sell Executed (+$${parseFloat(rec.gross_profit).toFixed(2)})`
+                });
             })
             .subscribe();
 
-        const handleNewLog = (newLog) => {
+        const handleNewLog = (data) => {
             setLogs(prev => {
-                // Deduplicate by ID
-                if (prev.find(l => l.id === newLog.order_id)) return prev;
+                if (prev.find(l => l.id === data.id)) return prev;
 
-                const isBuy = newLog.side === 'BUY';
-                const date = new Date(newLog.created_at || Date.now());
+                const isBuy = data.side === 'BUY';
+                const date = new Date(data.created_at || Date.now());
                 const item = {
-                    id: newLog.order_id || newLog.id,
+                    id: data.id,
                     type: isBuy ? 'buy' : 'sell',
-                    message: isBuy ? 'Buy Order Executed' : 'Sell Order Executed',
-                    details: `${parseFloat(newLog.orig_qty || newLog.quantity || 0)} BTC @ $${parseFloat(newLog.price).toLocaleString()}`,
+                    message: data.message_override || (isBuy ? 'Buy Order Executed' : 'Sell Order Executed'),
+                    details: `${parseFloat(data.quantity || 0)} BTC @ $${parseFloat(data.price).toLocaleString()}`,
                     time: date.toLocaleTimeString('en-US', { hour12: false })
                 };
                 return [item, ...prev].slice(0, 20);
