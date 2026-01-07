@@ -27,16 +27,16 @@ const Analytics = () => {
 
         const { data: pData } = await supabase
             .from('completed_cycles')
-            .select('close_time, profit')
-            .gt('close_time', new Date(pnlStartTs * 1000).toISOString())
-            .order('close_time', { ascending: true });
+            .select('closed_at, net_profit')
+            .gt('closed_at', new Date(pnlStartTs * 1000).toISOString())
+            .order('closed_at', { ascending: true });
 
         if (pData) {
             let cumulative = 0;
             const formatted = pData.map(d => {
-                cumulative += (d.profit || 0);
+                cumulative += (d.net_profit || 0);
                 return {
-                    time: new Date(d.close_time).getTime() / 1000,
+                    time: new Date(d.closed_at).getTime() / 1000,
                     value: cumulative
                 };
             });
@@ -55,18 +55,18 @@ const Analytics = () => {
 
         const { data: hData } = await supabase
             .from('completed_cycles')
-            .select('close_time, profit')
-            .gt('close_time', new Date(hourlyStartTs * 1000).toISOString())
-            .order('close_time', { ascending: true });
+            .select('closed_at, net_profit')
+            .gt('closed_at', new Date(hourlyStartTs * 1000).toISOString())
+            .order('closed_at', { ascending: true });
 
         if (hData) {
             const buckets = new Array(rangeHours).fill(0).map(() => ({ value: 0, cycles: 0 }));
             hData.forEach(d => {
-                const cycleTime = new Date(d.close_time).getTime() / 1000;
+                const cycleTime = new Date(d.closed_at).getTime() / 1000;
                 const diffHours = (cycleTime - hourlyStartTs) / 3600;
                 const index = Math.floor(diffHours);
                 if (index >= 0 && index < rangeHours) {
-                    buckets[index].value += (d.profit || 0);
+                    buckets[index].value += (d.net_profit || 0);
                     buckets[index].cycles += 1;
                 }
             });
