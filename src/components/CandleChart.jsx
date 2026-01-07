@@ -85,7 +85,6 @@ const CandleChart = ({ interval = '1m' }) => {
                 }
 
                 // 2. Initial Markers & Lines (Supabase)
-                updateMarkers();
                 updatePriceLines();
 
             } catch (error) {
@@ -94,63 +93,7 @@ const CandleChart = ({ interval = '1m' }) => {
         };
 
         // Helper: Update Markers (Filled Orders)
-        const updateMarkers = async () => {
-            const { data: trades } = await supabase
-                .from('orders')
-                .select('created_at, side, quantity, price, order_id')
-                .eq('status', 'FILLED')
-                .order('created_at', { ascending: false })
-                .limit(500);
 
-            if (trades) {
-                const getIntervalSeconds = (str) => {
-                    if (str.endsWith('m')) return parseInt(str) * 60;
-                    if (str.endsWith('h')) return parseInt(str) * 3600;
-                    if (str.endsWith('d')) return parseInt(str) * 86400;
-                    return 60;
-                };
-                const intervalSecs = getIntervalSeconds(interval);
-
-                const grouped = {};
-                trades.forEach(t => {
-                    // Robust side check
-                    const isBuy = t.side === 'BUY' || t.side === 1 || t.side === 'buy';
-
-                    const tradeTimeSec = new Date(t.created_at).getTime() / 1000;
-                    const snappedTime = Math.floor(tradeTimeSec / intervalSecs) * intervalSecs;
-
-                    if (!grouped[snappedTime]) grouped[snappedTime] = { buys: 0, sells: 0 };
-
-                    if (isBuy) grouped[snappedTime].buys++;
-                    else grouped[snappedTime].sells++;
-                });
-
-                const markers = [];
-                Object.keys(grouped).forEach(timeKey => {
-                    const time = parseFloat(timeKey);
-                    const { buys, sells } = grouped[timeKey];
-                    // Position calculations: B below, S above
-                    if (buys > 0) markers.push({
-                        time,
-                        position: 'belowBar',
-                        color: '#00ff88',
-                        shape: 'arrowUp', // Changed to arrow for better visibility
-                        text: buys > 1 ? `${buys}B` : 'B',
-                        size: 2 // Slightly larger
-                    });
-                    if (sells > 0) markers.push({
-                        time,
-                        position: 'aboveBar',
-                        color: '#ff4d4d',
-                        shape: 'arrowDown',
-                        text: sells > 1 ? `${sells}S` : 'S',
-                        size: 2
-                    });
-                });
-                markers.sort((a, b) => a.time - b.time);
-                candlestickSeries.setMarkers(markers);
-            }
-        };
 
         // Helper: Update Price Lines (Open Orders)
         const updatePriceLines = async () => {
@@ -190,12 +133,60 @@ const CandleChart = ({ interval = '1m' }) => {
 
         // --- Real-time: Supabase (Orders) ---
         const ordersSub = supabase.channel('chart-orders')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-                // Refresh markers and lines on any order change
-                updateMarkers();
-                updatePriceLines();
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+                console.log("[Chart] Realtime Event:", payload);
+                const { eventType, new: newRecord, old: oldRecord } = payload;
+                const orderId = newRecord?.order_id || oldRecord?.order_id;
+
+                if (!orderId) return;
+
+                if (eventType === 'INSERT') {
+                    // Only add if NEW
+                    if (newRecord.status === 'NEW') {
+                        addOrUpdateLine(newRecord);
+                    }
+                } else if (eventType === 'UPDATE') {
+                    const existingLine = activeLinesMap.get(orderId);
+
+                    if (newRecord.status !== 'NEW') {
+                        // Order filled or canceled -> Remove line
+                        if (existingLine) {
+                            try { candlestickSeries.removePriceLine(existingLine); } catch (e) { console.error(e); }
+                            activeLinesMap.delete(orderId);
+                        }
+                    } else {
+                        // Still NEW -> Update if needed (price change)
+                        addOrUpdateLine(newRecord);
+                    }
+                } else if (eventType === 'DELETE') {
+                    const existingLine = activeLinesMap.get(orderId);
+                    if (existingLine) {
+                        try { candlestickSeries.removePriceLine(existingLine); } catch (e) { console.error(e); }
+                        activeLinesMap.delete(orderId);
+                    }
+                }
             })
             .subscribe();
+
+        const addOrUpdateLine = (order) => {
+            const existingLine = activeLinesMap.get(order.order_id);
+            if (existingLine) {
+                existingLine.applyOptions({ price: order.price });
+            } else {
+                const isBuy = order.side === 'BUY';
+                const isMobile = window.innerWidth < 900;
+                const line = candlestickSeries.createPriceLine({
+                    price: order.price,
+                    color: isBuy ? '#00ff88' : '#ff4d4d',
+                    lineWidth: 1,
+                    lineStyle: 2,
+                    axisLabelVisible: true,
+                    title: isMobile ? '' : (isBuy ? 'BUY' : 'SELL'),
+                    lineVisible: true,
+                });
+                activeLinesMap.set(order.order_id, line);
+            }
+        };
 
         // --- Real-time: Binance WebSocket (Candles) ---
         let ws = null;

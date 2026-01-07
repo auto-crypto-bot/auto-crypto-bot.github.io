@@ -7,81 +7,92 @@ const LiveActivity = () => {
 
     useEffect(() => {
         const fetchActivity = async () => {
-            const { data } = await supabase
-                .from('orders')
-                .select('*')
-                .eq('status', 'FILLED')
-                .order('created_at', { ascending: false })
-                .limit(20);
+            try {
+                // Fetch active positions (Recent Buys)
+                const { data: activeData, error: activeError } = await supabase
+                    .from('active_positions')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(20);
 
-            if (data) formatAndSet(data);
+                // Fetch completed cycles (Recent Sells)
+                const { data: completedData, error: completedError } = await supabase
+                    .from('completed_cycles')
+                    .select('*')
+                    .order('closed_at', { ascending: false })
+                    .limit(20);
+
+                if (activeError) console.error("Error fetching active positions:", activeError);
+                if (completedError) console.error("Error fetching completed cycles:", completedError);
+
+                formatAndSet(activeData || [], completedData || []);
+            } catch (e) {
+                console.error("Fetch Activity Error:", e);
+            }
         };
 
-        const formatAndSet = (rawData) => {
-            const formatted = rawData.map((t, idx) => {
-                const isBuy = t.side === 'BUY';
-                const date = new Date(t.created_at);
-                const timeStr = date.toLocaleTimeString('en-US', { hour12: false });
+        const formatAndSet = (active, completed) => {
+            const buys = active.map(t => ({
+                id: `buy-${t.id}`,
+                type: 'buy',
+                message: 'Buy Order Filled',
+                price: t.entry_price,
+                quantity: t.entry_quantity,
+                created_at: t.created_at
+            }));
 
+            const sells = completed.map(t => ({
+                id: `sell-${t.id}`,
+                type: 'sell',
+                message: `Sell Executed (+$${parseFloat(t.gross_profit || 0).toFixed(2)})`,
+                price: t.exit_price,
+                quantity: t.quantity || t.entry_quantity, // Fallback if quantity not in completed (usually it is)
+                created_at: t.closed_at
+            }));
+
+            // Merge and sort
+            const unified = [...buys, ...sells].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 50);
+
+            setLogs(unified.map(item => {
+                const date = new Date(item.created_at);
                 return {
-                    id: t.order_id || t.id || idx,
-                    type: isBuy ? 'buy' : 'sell',
-                    message: isBuy ? 'Buy Order Executed' : 'Sell Order Executed',
-                    details: `${parseFloat(t.orig_qty || t.quantity || 0)} BTC @ $${parseFloat(t.price).toLocaleString()}`,
-                    time: timeStr
+                    id: item.id,
+                    type: item.type,
+                    message: item.message,
+                    details: `${parseFloat(item.quantity || 0)} BTC @ $${parseFloat(item.price).toLocaleString()}`,
+                    time: date.toLocaleTimeString('en-US', { hour12: false })
                 };
-            });
-            setLogs(formatted);
+            }));
         };
 
         fetchActivity();
 
         const subscription = supabase
-            .channel('activity-feed-v2')
-            // Listen for NEW Buys and Buy Fills
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'active_positions' }, (payload) => {
+            .channel('activity-feed-v3')
+            // Listen for NEW Buys
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'active_positions' }, (payload) => {
+                console.log("[Activity] New Buy Event:", payload);
                 const newRec = payload.new;
-                if (!newRec) return;
-
-                // Check if it's a Buy Fill (Internal status in metadata or just mapped)
-                // We use metadata.internal_status or check if status changed to OPEN/FILLED?
-                // active_positions: status starts OPEN.
-                // We can just log "Buy Order Placed" on INSERT? or "Executed"?
-                // Let's log INSERT as "Buy Placed" and if we can detect fill...
-                // storage.py updates `active_positions` with meta_data={'internal_status': 'FILLED_BUY'}
-
-                if (payload.eventType === 'INSERT') {
-                    handleNewLog({
-                        id: newRec.id,
-                        side: 'BUY',
-                        price: newRec.entry_price,
-                        quantity: newRec.entry_quantity,
-                        created_at: newRec.created_at,
-                        message_override: 'Buy Order Placed'
-                    });
-                } else if (payload.eventType === 'UPDATE') {
-                    if (newRec.meta_data && newRec.meta_data.internal_status === 'FILLED_BUY' && payload.old && payload.old.meta_data?.internal_status !== 'FILLED_BUY') {
-                        handleNewLog({
-                            id: newRec.id,
-                            side: 'BUY',
-                            price: newRec.entry_price,
-                            quantity: newRec.entry_quantity,
-                            created_at: new Date().toISOString(),
-                            message_override: 'Buy Order Filled'
-                        });
-                    }
-                }
+                handleNewLog({
+                    id: `buy-${newRec.id}`,
+                    type: 'buy',
+                    message: 'Buy Order Filled',
+                    price: newRec.entry_price,
+                    quantity: newRec.entry_quantity,
+                    created_at: newRec.created_at
+                });
             })
-            // Listen for Sells (Cycle Complete)
+            // Listen for NEW Sells
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'completed_cycles' }, (payload) => {
+                console.log("[Activity] New Sell Event:", payload);
                 const rec = payload.new;
                 handleNewLog({
-                    id: rec.id,
-                    side: 'SELL',
+                    id: `sell-${rec.id}`,
+                    type: 'sell',
+                    message: `Sell Executed (+$${parseFloat(rec.gross_profit || 0).toFixed(2)})`,
                     price: rec.exit_price,
                     quantity: rec.quantity,
-                    created_at: rec.closed_at,
-                    message_override: `Sell Executed (+$${parseFloat(rec.gross_profit).toFixed(2)})`
+                    created_at: rec.closed_at
                 });
             })
             .subscribe();
@@ -90,16 +101,15 @@ const LiveActivity = () => {
             setLogs(prev => {
                 if (prev.find(l => l.id === data.id)) return prev;
 
-                const isBuy = data.side === 'BUY';
                 const date = new Date(data.created_at || Date.now());
                 const item = {
                     id: data.id,
-                    type: isBuy ? 'buy' : 'sell',
-                    message: data.message_override || (isBuy ? 'Buy Order Executed' : 'Sell Order Executed'),
+                    type: data.type,
+                    message: data.message,
                     details: `${parseFloat(data.quantity || 0)} BTC @ $${parseFloat(data.price).toLocaleString()}`,
                     time: date.toLocaleTimeString('en-US', { hour12: false })
                 };
-                return [item, ...prev].slice(0, 20);
+                return [item, ...prev].slice(0, 50);
             });
         };
 
