@@ -93,8 +93,7 @@ export const useSettings = () => {
                 status: fullConfig.status || "RUNNING"
             };
 
-            console.log("Applying Strategy Params:", payload);
-            const { error } = await supabase
+
             console.log("Applying Strategy Params:", payload);
             const { error } = await supabase
                 .from('bot_config')
